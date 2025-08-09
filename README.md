@@ -14,6 +14,7 @@ These are the versions this sample app is coming with:
 
 - Node.js (v22.18 or higher)
 - npm or pnpm
+- Docker and Docker Compose (optional)
 
 Stable work on lower versions is not guaranteed.
 

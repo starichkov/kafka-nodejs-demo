@@ -1,0 +1,79 @@
+services:
+  kafka:
+    image: apache/kafka:3.9.1
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      # Group coordinator configuration for faster availability
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
+      KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 300000
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 50
+    healthcheck:
+      test: [ "CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka-setup:
+    image: apache/kafka:3.9.1
+    container_name: kafka-setup
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Creating topic kafka-nodejs-demo-topic...' &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic kafka-nodejs-demo-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        echo 'Topic creation completed.'
+      "
+    restart: on-failure
+
+  producer:
+    build:
+      context: .
+      dockerfile: producer.Dockerfile
+    container_name: kafka-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_CLIENT_ID: "kafka-nodejs-demo"
+      KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
+      KAFKA_TOPIC: "kafka-nodejs-demo-topic"
+      FROM_BEGINNING: "true"
+    restart: on-failure
+
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer.Dockerfile
+    container_name: kafka-consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      producer:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_CLIENT_ID: "kafka-nodejs-demo"
+      KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
+      KAFKA_TOPIC: "kafka-nodejs-demo-topic"
+      FROM_BEGINNING: "true"
+    restart: on-failure

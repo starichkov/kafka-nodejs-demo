@@ -26,47 +26,83 @@ export async function consumeMessages({
     }
     if (!topic) throw new Error('topic is required');
 
-    const kafka = new Kafka({clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING});
+    const kafka = new Kafka({clientId, brokers: parseBrokers(brokers), logLevel: logLevel.INFO});
     const consumer = kafka.consumer({groupId});
 
     let running = true;
 
     const stopConsumer = async () => {
         if (!running) return;
+        console.log('Stopping consumer...');
         running = false;
         try {
             await consumer.stop();
-        } catch (_) {
-            // ignore
+            console.log('Consumer stopped');
+        } catch (err) {
+            console.error('Error stopping consumer:', err);
         }
         try {
             await consumer.disconnect();
-        } catch (_) {
-            // ignore
+            console.log('Consumer disconnected');
+        } catch (err) {
+            console.error('Error disconnecting consumer:', err);
         }
     };
 
     if (signal) {
-        if (signal.aborted) await stopConsumer();
+        if (signal.aborted) {
+            console.log('Signal already aborted, stopping consumer immediately');
+            await stopConsumer();
+        }
         signal.addEventListener('abort', stopConsumer, {once: true});
     }
 
+    console.log('Connecting to Kafka...');
     await consumer.connect();
+    console.log('Connected to Kafka successfully');
+    
+    console.log(`Subscribing to topic: ${topic}, fromBeginning: ${fromBeginning}`);
     await consumer.subscribe({topic, fromBeginning});
+    console.log('Subscribed to topic successfully');
 
-    const runPromise = consumer.run({
-        eachMessage: async (payload) => {
-            if (!running) return;
-            if (typeof eachMessage === 'function') {
-                await eachMessage(payload);
+    // Add delay and retry logic for group coordinator readiness
+    console.log('Waiting for group coordinator to be ready...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    console.log('Starting consumer run loop with retry logic...');
+    let retries = 0;
+    const maxRetries = 3;
+    let runPromise;
+    
+    while (retries < maxRetries && running) {
+        try {
+            runPromise = consumer.run({
+                eachMessage: async (payload) => {
+                    if (!running) return;
+                    if (typeof eachMessage === 'function') {
+                        await eachMessage(payload);
+                    } else {
+                        const {topic, partition, message} = payload;
+                        const key = message.key ? message.key.toString() : null;
+                        const value = message.value ? message.value.toString() : null;
+                        console.log(`Consumed message topic=${topic} partition=${partition} key=${key} value=${value}`);
+                    }
+                },
+            });
+            console.log('Consumer run loop started successfully');
+            break; // Success, exit retry loop
+        } catch (error) {
+            retries++;
+            console.log(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
+            if (retries < maxRetries) {
+                console.log(`Retrying in ${2000 * retries}ms...`);
+                await new Promise(resolve => setTimeout(resolve, 2000 * retries));
             } else {
-                const {topic, partition, message} = payload;
-                const key = message.key ? message.key.toString() : null;
-                const value = message.value ? message.value.toString() : null;
-                console.log(`Consumed message topic=${topic} partition=${partition} key=${key} value=${value}`);
+                console.error('Max retries reached, consumer failed to start');
+                throw error;
             }
-        },
-    });
+        }
+    }
 
     const stop = async () => {
         await stopConsumer();
@@ -98,7 +134,9 @@ async function main() {
     process.on('SIGTERM', () => ac.abort());
     try {
         console.log(`Starting consumer: topic=${cfg.topic}, brokers=${cfg.brokers}`);
-        await consumeMessages({...cfg, signal});
+        const {runPromise} = await consumeMessages({...cfg, signal});
+        // Keep the process alive until the consumer stops (e.g., on SIGINT/SIGTERM)
+        await runPromise;
     } catch (err) {
         console.error('Consumer error:', err);
         process.exitCode = 1;
