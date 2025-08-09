@@ -1,6 +1,6 @@
 import {describe, test, expect} from '@jest/globals';
 import {kafkaClient, uniqueId, ensureTopic} from './kafka-helpers.js';
-import {consumeMessages} from '../src/consumer.js';
+import {consumeMessages, parseBrokers} from '../src/consumer.js';
 import {Partitioners} from "kafkajs";
 
 async function produce(topic, {key = null, value}) {
@@ -52,4 +52,187 @@ describe('consumer with real Kafka (Testcontainers)', () => {
 
         expect(got).toEqual({topic, partition: 0, key: 'k', value: 'v'});
     }, 20_000);
+});
+
+describe('parseBrokers unit tests', () => {
+    test('parseBrokers handles array input', () => {
+        const input = ['broker1:9092', 'broker2:9092'];
+        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
+    });
+
+    test('parseBrokers handles string input', () => {
+        const input = 'broker1:9092,broker2:9092';
+        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
+    });
+
+    test('parseBrokers handles string input with PLAINTEXT prefix', () => {
+        const input = 'PLAINTEXT://broker1:9092,PLAINTEXT://broker2:9092';
+        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
+    });
+
+    test('parseBrokers handles string input with whitespace', () => {
+        const input = ' broker1:9092 , broker2:9092 ';
+        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
+    });
+
+    test('parseBrokers returns empty array for non-string non-array input', () => {
+        expect(parseBrokers(null)).toEqual([]);
+        expect(parseBrokers(undefined)).toEqual([]);
+        expect(parseBrokers(123)).toEqual([]);
+        expect(parseBrokers({})).toEqual([]);
+    });
+
+    test('parseBrokers filters out empty strings', () => {
+        const input = 'broker1:9092,,broker2:9092,';
+        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
+    });
+});
+
+describe('consumeMessages error handling', () => {
+    test('throws error when brokers is null', async () => {
+        await expect(consumeMessages({
+            brokers: null,
+            topic: 'test-topic'
+        })).rejects.toThrow('brokers is required');
+    });
+
+    test('throws error when brokers is empty array', async () => {
+        await expect(consumeMessages({
+            brokers: [],
+            topic: 'test-topic'
+        })).rejects.toThrow('brokers is required');
+    });
+
+    test('throws error when topic is missing', async () => {
+        await expect(consumeMessages({
+            brokers: ['localhost:9092'],
+            topic: null
+        })).rejects.toThrow('topic is required');
+    });
+
+    test('throws error when topic is empty string', async () => {
+        await expect(consumeMessages({
+            brokers: ['localhost:9092'],
+            topic: ''
+        })).rejects.toThrow('topic is required');
+    });
+});
+
+describe('consumeMessages signal handling', () => {
+    test('handles already aborted signal', async () => {
+        const controller = new AbortController();
+        controller.abort(); // Abort before passing to consumeMessages
+        
+        const {brokers} = globalThis.__kafka_brokers__;
+        
+        // This should handle the already-aborted signal case
+        const result = await consumeMessages({
+            brokers,
+            topic: 'test-topic',
+            signal: controller.signal,
+            clientId: 'test-signal-client',
+            groupId: 'test-signal-group'
+        });
+        
+        expect(result.stop).toBeDefined();
+        // runPromise may be undefined if signal was already aborted
+        // This is expected behavior as the consumer stops immediately
+        
+        // Clean up
+        await result.stop();
+    }, 10_000);
+
+    test('handles signal abort during consumption', async () => {
+        const controller = new AbortController();
+        const {brokers} = globalThis.__kafka_brokers__;
+        
+        const result = await consumeMessages({
+            brokers,
+            topic: 'test-topic-signal',
+            signal: controller.signal,
+            clientId: 'test-abort-client',
+            groupId: 'test-abort-group'
+        });
+        
+        // Abort after starting
+        setTimeout(() => controller.abort(), 100);
+        
+        // Should handle the abort gracefully
+        await result.stop();
+        await result.runPromise;
+        
+        expect(result.stop).toBeDefined();
+        expect(result.runPromise).toBeDefined();
+    }, 10_000);
+
+    test('handles custom eachMessage function', async () => {
+        const {brokers} = globalThis.__kafka_brokers__;
+        const topic = uniqueId('custom-handler');
+        
+        let messageReceived = false;
+        const customHandler = async (payload) => {
+            messageReceived = true;
+            expect(payload.topic).toBe(topic);
+            expect(payload.message).toBeDefined();
+        };
+        
+        const {stop, runPromise} = await consumeMessages({
+            brokers,
+            topic,
+            clientId: 'custom-handler-client',
+            groupId: `custom-handler-group-${Date.now()}`,
+            fromBeginning: true,
+            eachMessage: customHandler
+        });
+        
+        // Produce a message to trigger the handler
+        await produce(topic, {key: 'test-key', value: 'test-value'});
+        
+        // Wait for message to be processed
+        await new Promise(resolve => {
+            const checkInterval = setInterval(() => {
+                if (messageReceived) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 50);
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+            }, 5000);
+        });
+        
+        await stop();
+        await runPromise;
+        
+        expect(messageReceived).toBe(true);
+    }, 15_000);
+
+    test('handles undefined eachMessage with default logging', async () => {
+        const {brokers} = globalThis.__kafka_brokers__;
+        const topic = uniqueId('default-handler');
+        
+        const {stop, runPromise} = await consumeMessages({
+            brokers,
+            topic,
+            clientId: 'default-handler-client',
+            groupId: `default-handler-group-${Date.now()}`,
+            fromBeginning: true
+            // eachMessage is undefined, should use default handler
+        });
+        
+        // Produce a message
+        await produce(topic, {key: 'test-key', value: 'test-value'});
+        
+        // Wait a bit for potential message processing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        await stop();
+        await runPromise;
+        
+        // Just verify it doesn't crash with undefined eachMessage
+        expect(stop).toBeDefined();
+    }, 15_000);
 });
