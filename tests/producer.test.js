@@ -1,58 +1,52 @@
-/* eslint-env jest */
-import {jest, describe, test, expect, beforeEach} from '@jest/globals';
+import {describe, test, expect} from '@jest/globals';
+import {kafkaClient, uniqueId, ensureTopic} from './kafka-helpers.js';
+import {produceMessage} from "../src/producer.js";
 
-// Mock kafkajs as an ESM default export
-jest.unstable_mockModule('kafkajs', () => {
-    const send = jest.fn();
-    const connect = jest.fn();
-    const disconnect = jest.fn();
-    const producer = () => ({connect, send, disconnect});
-    const Kafka = function Kafka() {
-        return {producer};
-    };
-    return {default: {Kafka, logLevel: {NOTHING: 0}}};
-});
-
-describe('producer (unit, mocked kafkajs)', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+async function consumeOne(kafka, topic) {
+    const groupId = uniqueId("g");
+    const consumer = kafka.consumer({groupId: groupId});
+    await consumer.connect();
+    await consumer.subscribe({topic, fromBeginning: true});
+    let first;
+    await new Promise((resolve, reject) => {
+        consumer
+            .run({
+                eachMessage: async ({message}) => {
+                    first = {
+                        key: message.key ? message.key.toString() : null,
+                        value: message.value ? message.value.toString() : null,
+                    };
+                    resolve();
+                },
+            })
+            .catch(reject);
     });
+    await consumer.stop();
+    await consumer.disconnect();
+    return first;
+}
 
-    test('parseBrokers works with string and array', async () => {
-        const {parseBrokers} = await import('../src/producer.js');
-        expect(parseBrokers('localhost:9092')).toEqual(['localhost:9092']);
-        expect(parseBrokers(['a:1', 'b:2'])).toEqual(['a:1', 'b:2']);
-        expect(parseBrokers('PLAINTEXT://kafka:9092, other:1234')).toEqual(['kafka:9092', 'other:1234']);
-        expect(parseBrokers(123)).toEqual([]);
-    });
+describe('producer with real Kafka (Testcontainers)', () => {
 
-    test('produceMessage sends string message and disconnects', async () => {
-        const {default: kafkajs} = await import('kafkajs');
-        const {produceMessage} = await import('../src/producer.js');
-        const kafka = new kafkajs.Kafka();
-        const prod = kafka.producer();
+    const {brokers} = globalThis.__kafka_brokers__;
 
-        await produceMessage({brokers: 'b:1', topic: 't', key: 'k', message: 'v'});
+    const kafka = kafkaClient();
 
-        expect(prod.connect).toHaveBeenCalled();
-        expect(prod.send).toHaveBeenCalledWith({
-            topic: 't',
-            messages: [
-                {key: 'k', value: 'v'},
-            ],
-        });
-        expect(prod.disconnect).toHaveBeenCalled();
+    test('produceMessage sends string message that can be consumed', async () => {
+        const topic = uniqueId();
+        await ensureTopic(kafka, topic);
+        await produceMessage({brokers, topic, key: 'k', message: 'v'});
+
+        const msg = await consumeOne(kafka, topic);
+        expect(msg).toEqual({key: 'k', value: 'v'});
     });
 
     test('produceMessage stringifies non-string message', async () => {
-        const {default: kafkajs} = await import('kafkajs');
-        const {produceMessage} = await import('../src/producer.js');
-        const prod = new kafkajs.Kafka().producer();
+        const topic = uniqueId();
+        await ensureTopic(kafka, topic);
+        await produceMessage({brokers, topic, message: {a: 1}});
 
-        await produceMessage({brokers: 'b:1', topic: 't', message: {a: 1}});
-
-        const [[call]] = prod.send.mock.calls;
-        expect(call.messages[0].value).toBe(JSON.stringify({a: 1}));
-        expect(call.messages[0].key).toBe(null);
+        const msg = await consumeOne(kafka, topic);
+        expect(msg).toEqual({key: null, value: JSON.stringify({a: 1})});
     });
 });

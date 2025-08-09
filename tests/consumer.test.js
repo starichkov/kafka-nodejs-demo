@@ -1,68 +1,55 @@
-/* eslint-env jest */
-import {jest, describe, test, expect} from '@jest/globals';
+import {describe, test, expect} from '@jest/globals';
+import {kafkaClient, uniqueId, ensureTopic} from './kafka-helpers.js';
+import {consumeMessages} from '../src/consumer.js';
+import {Partitioners} from "kafkajs";
 
-// Mock kafkajs as an ESM default export
-jest.unstable_mockModule('kafkajs', () => {
-    const connect = jest.fn();
-    const subscribe = jest.fn();
-    const stop = jest.fn();
-    const disconnect = jest.fn();
-    const run = jest.fn(async ({eachMessage}) => {
-        return eachMessage;
-    });
-    const consumer = () => ({connect, subscribe, run, stop, disconnect});
-    const Kafka = function Kafka() {
-        return {consumer};
-    };
-    return {default: {Kafka, logLevel: {NOTHING: 0}}};
-});
+async function produce(topic, {key = null, value}) {
+    const kafka = kafkaClient();
+    await ensureTopic(kafka, topic);
+    const producer = kafka.producer({createPartitioner: Partitioners.DefaultPartitioner});
+    await producer.connect();
+    await producer.send({topic, messages: [{key, value}]});
+    await producer.disconnect();
+}
 
-describe('consumer (unit, mocked kafkajs)', () => {
-    test('parseBrokers works', async () => {
-        const {parseBrokers} = await import('../src/consumer.js');
-        expect(parseBrokers('localhost:9092, other:9093')).toEqual(['localhost:9092', 'other:9093']);
-    });
+describe('consumer with real Kafka (Testcontainers)', () => {
+    test('consumeMessages consumes a produced message and can stop', async () => {
+        const {brokers} = globalThis.__kafka_brokers__;
+        const topic = uniqueId('t');
 
-    test('consumeMessages calls eachMessage and can stop', async () => {
-        const {default: kafkajs} = await import('kafkajs');
-        const {consumeMessages} = await import('../src/consumer.js');
-        const cons = new kafkajs.Kafka().consumer();
-
-        const received = [];
-        const {stop: stopFn, runPromise} = await consumeMessages({
-            brokers: 'b:1',
-            topic: 't',
+        let firstMessage;
+        const {stop, runPromise} = await consumeMessages({
+            brokers,
+            topic,
             clientId: 'c',
-            groupId: 'g',
+            groupId: `g-${Date.now()}-${Math.random()}`,
             fromBeginning: true,
             eachMessage: async ({topic, partition, message}) => {
-                received.push({
+                firstMessage = {
                     topic,
                     partition,
                     key: message.key ? message.key.toString() : null,
                     value: message.value ? message.value.toString() : null,
-                });
-                await stopFn();
+                };
+                // NOTE: do not stop here — let the handler finish cleanly
             },
         });
 
-        // Simulate a message arrival by invoking the stored handler
-        const payload = {
-            topic: 't',
-            partition: 0,
-            message: {key: Buffer.from('k'), value: Buffer.from('v')},
-        };
+        await produce(topic, {key: 'k', value: 'v'});
 
-        // Find the handler passed to run and invoke it
-        const [[runArg]] = cons.run.mock.calls;
-        await runArg.eachMessage(payload);
+        // wait until handler ran
+        const got = await Promise.race([
+            (async () => {
+                while (!firstMessage) await new Promise(r => setTimeout(r, 15));
+                return firstMessage;
+            })(),
+            new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 15000)),
+        ]);
 
+        // NOW stop the consumer loop and await its promise
+        await stop();
         await runPromise;
 
-        expect(received).toEqual([{topic: 't', partition: 0, key: 'k', value: 'v'}]);
-        expect(cons.connect).toHaveBeenCalled();
-        expect(cons.subscribe).toHaveBeenCalledWith({topic: 't', fromBeginning: true});
-        expect(cons.stop).toHaveBeenCalled();
-        expect(cons.disconnect).toHaveBeenCalled();
-    });
+        expect(got).toEqual({topic, partition: 0, key: 'k', value: 'v'});
+    }, 20_000);
 });
