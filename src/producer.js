@@ -54,6 +54,32 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
     const kafka = new Kafka({clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING});
     const producer = kafka.producer();
 
+    // Perform a readiness check via Kafka admin instead of relying on timing
+    console.log('Checking Kafka readiness (producer admin metadata)...');
+    async function waitForKafkaConnectivity(timeoutMs = 10000) {
+        // In unit tests or mocks, kafka.admin may be unavailable; treat as ready
+        if (!kafka || typeof kafka.admin !== 'function') return;
+        const admin = kafka.admin();
+        const start = Date.now();
+        try {
+            await admin.connect();
+            // Poll describeCluster until it succeeds or timeout
+            for (;;) {
+                try {
+                    await admin.describeCluster();
+                    return; // ready
+                } catch {
+                    if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
+                    await new Promise(r => setTimeout(r, 250));
+                }
+            }
+        } finally {
+            try { await admin.disconnect(); } catch {}
+        }
+    }
+
+    await waitForKafkaConnectivity();
+
     await producer.connect();
     try {
         await producer.send({
