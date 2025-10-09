@@ -22,10 +22,10 @@
     "kafkajs": "^2.2.4"
   },
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "jest": "^29.7.0",
-    "testcontainers": "^11.5.1",
-    "@testcontainers/kafka": "^11.5.1"
+    "@jest/globals": "^30.2.0",
+    "@testcontainers/kafka": "^11.7.1",
+    "jest": "^30.2.0",
+    "testcontainers": "^11.7.1"
   },
   "jest": {
     "testEnvironment": "node",
