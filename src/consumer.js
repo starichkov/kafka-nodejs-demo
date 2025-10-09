@@ -116,7 +116,7 @@ export async function consumeMessages({
     return {stop, runPromise};
 }
 
-function configFromEnv() {
+export function configFromEnv() {
     return {
         brokers: process.env.KAFKA_BROKERS || 'localhost:9092',
         clientId: process.env.KAFKA_CLIENT_ID || 'kafka-nodejs-demo',
@@ -126,7 +126,7 @@ function configFromEnv() {
     };
 }
 
-async function main() {
+export async function main(deps = { consumeMessages }) {
     const cfg = configFromEnv();
     const ac = new AbortController();
     const signal = ac.signal;
@@ -134,7 +134,7 @@ async function main() {
     process.on('SIGTERM', () => ac.abort());
     try {
         console.log(`Starting consumer: topic=${cfg.topic}, brokers=${cfg.brokers}`);
-        const {runPromise} = await consumeMessages({...cfg, signal});
+        const {runPromise} = await deps.consumeMessages({...cfg, signal});
         // Keep the process alive until the consumer stops (e.g., on SIGINT/SIGTERM)
         await runPromise;
     } catch (err) {
@@ -144,7 +144,7 @@ async function main() {
 }
 
 // Run as CLI if executed directly
-const isDirectRun = () => {
+export const isDirectRun = () => {
     try {
         return import.meta.url === pathToFileURL(process.argv[1]).href;
     } catch {

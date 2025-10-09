@@ -38,7 +38,7 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
     }
 }
 
-function configFromEnv() {
+export function configFromEnv() {
     return {
         brokers: process.env.KAFKA_BROKERS || 'localhost:9092',
         clientId: process.env.KAFKA_CLIENT_ID || 'kafka-nodejs-demo',
@@ -48,10 +48,10 @@ function configFromEnv() {
     };
 }
 
-async function main() {
+export async function main(deps = { produceMessage }) {
     const cfg = configFromEnv();
     try {
-        await produceMessage(cfg);
+        await deps.produceMessage(cfg);
         console.log(`Produced message to ${cfg.topic}`);
         process.exitCode = 0;
     } catch (err) {
@@ -61,7 +61,7 @@ async function main() {
 }
 
 // Run as CLI if executed directly
-const isDirectRun = () => {
+export const isDirectRun = () => {
     try {
         return import.meta.url === pathToFileURL(process.argv[1]).href;
     } catch {
