@@ -46,7 +46,7 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
  * @returns {Promise<void>}
  */
 export default async () => {
-    const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.2";
+    const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.3";
     const container = await new KafkaContainer(image)
         .withStartupTimeout(12000)
         // .withWaitStrategy(Wait.forHealthCheck())
