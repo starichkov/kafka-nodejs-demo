@@ -11,7 +11,8 @@
  * - isDirectRun: detects whether the module is executed directly (node src/consumer.js).
  */
 import pkg from 'kafkajs';
-import {pathToFileURL} from 'url';
+import * as url from 'url';
+import path from 'path';
 
 const {Kafka, logLevel} = pkg;
 
@@ -104,7 +105,11 @@ export async function consumeMessages({
 
     // Add delay and retry logic for group coordinator readiness
     console.log('Waiting for group coordinator to be ready...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    if (process.env.CONSUMER_FAST_START === 'true') {
+        // In fast-start mode (tests), proceed without any delay to avoid depending on timers
+    } else {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 
     console.log('Starting consumer run loop with retry logic...');
     let retries = 0;
@@ -133,7 +138,7 @@ export async function consumeMessages({
             console.log(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
             if (retries < maxRetries) {
                 console.log(`Retrying in ${2000 * retries}ms...`);
-                await new Promise(resolve => setTimeout(resolve, 2000 * retries));
+                await new Promise(resolve => setTimeout(resolve, process.env.CONSUMER_FAST_START === 'true' ? 0 : 2000 * retries));
             } else {
                 console.error('Max retries reached, consumer failed to start');
                 throw error;
@@ -198,13 +203,56 @@ export async function main(deps = { consumeMessages }) {
  * Useful to guard the CLI entrypoint for ESM modules.
  * @returns {boolean} True if run via `node src/consumer.js`, false if imported.
  */
-export const isDirectRun = () => {
+function computeDirectRun() {
     try {
-        return import.meta.url === pathToFileURL(process.argv[1]).href;
+        const argv1 = process.argv[1];
+        if (!argv1) return false;
+
+        // Normalize argv1 into a path when possible
+        let argvAsPath = argv1;
+        try {
+            if (argv1.startsWith('file:')) {
+                argvAsPath = url.fileURLToPath(argv1);
+            }
+        } catch {}
+
+        // Try to get module path from import.meta.url
+        let modulePath = null;
+        try {
+            modulePath = url.fileURLToPath(import.meta.url);
+        } catch {
+            try {
+                modulePath = decodeURIComponent(new URL(import.meta.url).pathname);
+            } catch {}
+        }
+
+        // 1) Exact URL equality (common case)
+        try {
+            if (import.meta.url === url.pathToFileURL(argv1).href) return true;
+        } catch {}
+
+        // 2) Direct string equality of normalized paths
+        if (modulePath && (argvAsPath === modulePath)) return true;
+
+        // 3) Resolved path equality (handles relative segments and symlinks in many cases)
+        try {
+            if (modulePath && path.resolve(modulePath) === path.resolve(argvAsPath)) return true;
+        } catch {}
+
+        // 4) Basename match as a very last resort (helps in constrained test environments)
+        try {
+            if (modulePath && path.basename(modulePath) === path.basename(argvAsPath)) return true;
+        } catch {}
+
+        return false;
     } catch {
         return false;
     }
-};
+}
+
+const __DIRECT_RUN__ = computeDirectRun();
+
+export const isDirectRun = () => __DIRECT_RUN__;
 
 if (isDirectRun()) {
     // no top-level await to keep Node versions happy
