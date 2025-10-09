@@ -3,7 +3,7 @@
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/starichkov/kafka-nodejs-demo/node.js.yml?style=for-the-badge)](https://github.com/starichkov/kafka-nodejs-demo/actions/workflows/node.js.yml)
 [![Codecov](https://img.shields.io/codecov/c/github/starichkov/kafka-nodejs-demo?style=for-the-badge)](https://codecov.io/gh/starichkov/kafka-nodejs-demo)
 
-# Apache Kafka Node.js Demo
+Apache Kafka Node.js Demo
 =
 
 A minimal Apache Kafka demo using Node.js.
