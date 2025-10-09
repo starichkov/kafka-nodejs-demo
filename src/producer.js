@@ -1,8 +1,27 @@
+/**
+ * Kafka producer utilities and CLI for KafkaJS.
+ * Provides helpers to normalize broker addresses, produce a single message,
+ * environment-driven configuration, and a CLI entrypoint when executed directly.
+ *
+ * Exports:
+ * - parseBrokers: normalizes brokers (string or array) to an array of host:port strings.
+ * - produceMessage: connects, sends a single message to a topic, and disconnects.
+ * - configFromEnv: builds configuration from environment variables for convenience/CLI.
+ * - main: CLI entrypoint used when running this file directly.
+ * - isDirectRun: detects whether the module is executed directly (node src/producer.js).
+ */
 import pkg from 'kafkajs';
 import {pathToFileURL} from 'url';
 
 const {Kafka, logLevel} = pkg;
 
+/**
+ * Normalizes broker endpoints into an array of host:port strings.
+ * Accepts either a comma-separated string ("host1:port1,host2:port2")
+ * or an array of strings. Strips the optional "PLAINTEXT://" prefix.
+ * @param {string|string[]} input Broker endpoints as a string or array.
+ * @returns {string[]} Array of brokers in "host:port" format. Returns [] for invalid input.
+ */
 export function parseBrokers(input) {
     if (Array.isArray(input)) return input;
     if (typeof input !== 'string') return [];
@@ -12,6 +31,19 @@ export function parseBrokers(input) {
         .filter(Boolean);
 }
 
+/**
+ * Produces a single message to a Kafka topic.
+ * Validates input, creates a producer, connects, sends, and disconnects.
+ *
+ * @param {Object} params Producer configuration.
+ * @param {string|string[]} params.brokers Kafka broker(s), e.g., "localhost:9092" or ["host:port"].
+ * @param {string} [params.clientId="kafka-nodejs-demo"] Kafka client ID used by KafkaJS.
+ * @param {string} [params.topic="demo-topic"] Topic to which the message will be produced.
+ * @param {unknown} params.message The message payload. Strings/Buffers are used as-is; other types are JSON.stringified.
+ * @param {string|number|null} [params.key] Optional key associated with the message (will be stringified; null if undefined).
+ * @throws {Error} If brokers, topic, or message are not provided.
+ * @returns {Promise<void>} Resolves when the message has been sent and the producer disconnected.
+ */
 export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', topic = 'demo-topic', message, key}) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
@@ -38,6 +70,11 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
     }
 }
 
+/**
+ * Builds a producer configuration from environment variables.
+ * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_TOPIC, MESSAGE, KEY.
+ * @returns {{brokers: string|string[], clientId: string, topic: string, message: string, key: (string|undefined)}}
+ */
 export function configFromEnv() {
     return {
         brokers: process.env.KAFKA_BROKERS || 'localhost:9092',
@@ -48,6 +85,12 @@ export function configFromEnv() {
     };
 }
 
+/**
+ * CLI entrypoint to produce a single message using environment configuration.
+ * Sets process.exitCode to 0 on success and 1 on error. Accepts dependency injection for tests.
+ * @param {{ produceMessage: typeof produceMessage }} [deps] Optional dependency overrides.
+ * @returns {Promise<void>}
+ */
 export async function main(deps = { produceMessage }) {
     const cfg = configFromEnv();
     try {
@@ -61,6 +104,11 @@ export async function main(deps = { produceMessage }) {
 }
 
 // Run as CLI if executed directly
+/**
+ * Detects whether this module is being executed directly (not imported) in Node.js.
+ * Useful to guard the CLI entrypoint for ESM modules.
+ * @returns {boolean} True if run via `node src/producer.js`, false if imported.
+ */
 export const isDirectRun = () => {
     try {
         return import.meta.url === pathToFileURL(process.argv[1]).href;

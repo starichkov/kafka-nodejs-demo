@@ -1,9 +1,18 @@
-// import fs from "node:fs";
-// import os from "node:os";
-// import path from "node:path";
+/**
+ * Jest global setup for Kafka integration tests.
+ * - Starts a Kafka Testcontainers container (image configurable via KAFKA_IMAGE)
+ * - Waits until Kafka is responsive using a KafkaJS admin client
+ * - Exposes the container and brokers on globalThis for tests and teardown
+ */
 import {KafkaContainer} from "@testcontainers/kafka";
 import {Kafka} from "kafkajs";
 
+/**
+ * Polls Kafka until it is ready by using a KafkaJS admin client and metadata calls.
+ * @param {string[]} brokers Array of broker addresses in host:port format.
+ * @param {number} [timeoutMs=30000] Maximum time to wait before rejecting.
+ * @returns {Promise<void>} Resolves when Kafka responds to admin operations.
+ */
 async function waitForKafka(brokers, timeoutMs = 30000) {
     const start = Date.now();
     const kafka = new Kafka({brokers});
@@ -27,6 +36,15 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
     }
 }
 
+/**
+ * Jest globalSetup entry point.
+ * Starts the Kafka Testcontainers container, waits for readiness, and stores references on globalThis.
+ * Environment:
+ * - KAFKA_IMAGE: Optional Docker image tag to use for the Kafka container.
+ * Side effects:
+ * - Sets globalThis.__kafka_container__ and globalThis.__kafka_brokers__ for use by tests and teardown.
+ * @returns {Promise<void>}
+ */
 export default async () => {
     const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.2";
     const container = await new KafkaContainer(image)
@@ -37,7 +55,7 @@ export default async () => {
 
     const brokers = [`${container.getHost()}:${container.getMappedPort(9093)}`];
 
-    // ✅ wait for controller & group coordinator to be reachable
+    // ✅ wait for controller and group coordinator to be reachable
     await waitForKafka(brokers);
 
     // Save container id + brokers to a temp file visible to all workers
