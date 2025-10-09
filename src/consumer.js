@@ -103,13 +103,31 @@ export async function consumeMessages({
     await consumer.subscribe({topic, fromBeginning});
     console.log('Subscribed to topic successfully');
 
-    // Add delay and retry logic for group coordinator readiness
-    console.log('Waiting for group coordinator to be ready...');
-    if (process.env.CONSUMER_FAST_START === 'true') {
-        // In fast-start mode (tests), proceed without any delay to avoid depending on timers
-    } else {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+    // Perform a readiness check via Kafka admin instead of a fixed sleep
+    console.log('Checking Kafka readiness (admin metadata)...');
+    async function waitForKafkaConnectivity(timeoutMs = 10000) {
+        // In unit tests, the Kafka mock may not provide admin(); treat as ready
+        if (!kafka || typeof kafka.admin !== 'function') return;
+        const admin = kafka.admin();
+        const start = Date.now();
+        try {
+            await admin.connect();
+            // Poll describeCluster until it succeeds or timeout
+            for (;;) {
+                try {
+                    await admin.describeCluster();
+                    return; // ready
+                } catch {
+                    if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
+                    await new Promise(r => setTimeout(r, 250));
+                }
+            }
+        } finally {
+            try { await admin.disconnect(); } catch {}
+        }
     }
+
+    await waitForKafkaConnectivity();
 
     console.log('Starting consumer run loop with retry logic...');
     let retries = 0;
@@ -137,8 +155,8 @@ export async function consumeMessages({
             retries++;
             console.log(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
             if (retries < maxRetries) {
-                console.log(`Retrying in ${2000 * retries}ms...`);
-                await new Promise(resolve => setTimeout(resolve, process.env.CONSUMER_FAST_START === 'true' ? 0 : 2000 * retries));
+                console.log('Retrying after readiness check...');
+                await waitForKafkaConnectivity(5000);
             } else {
                 console.error('Max retries reached, consumer failed to start');
                 throw error;
