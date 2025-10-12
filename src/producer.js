@@ -19,6 +19,9 @@ const {Kafka, logLevel} = pkg;
 import {parseBrokers, waitForKafkaConnectivity} from './utils.js';
 export {parseBrokers};
 
+// Centralized logger
+import logger from './logger.js';
+
 /**
  * Produces a single message to a Kafka topic.
  * Validates input, creates a producer, connects, sends, and disconnects.
@@ -43,7 +46,7 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
     const producer = kafka.producer();
 
     // Perform a readiness check via Kafka admin instead of relying on timing
-    console.log('Checking Kafka readiness (producer admin metadata)...');
+    logger.info('Checking Kafka readiness (producer admin metadata)...');
     await waitForKafkaConnectivity(kafka);
 
     await producer.connect();
@@ -87,10 +90,10 @@ export async function main(deps = { produceMessage }) {
     const cfg = configFromEnv();
     try {
         await deps.produceMessage(cfg);
-        console.log(`Produced message to ${cfg.topic}`);
+        logger.info(`Produced message to ${cfg.topic}`);
         process.exitCode = 0;
     } catch (err) {
-        console.error('Producer error:', err);
+        logger.error('Producer error:', err);
         process.exitCode = 1;
     }
 }

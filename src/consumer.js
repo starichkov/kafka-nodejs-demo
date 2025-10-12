@@ -20,6 +20,9 @@ const {Kafka, logLevel} = pkg;
 import {parseBrokers, waitForKafkaConnectivity} from './utils.js';
 export {parseBrokers};
 
+// Centralized logger
+import logger from './logger.js';
+
 /**
  * Starts a Kafka consumer and begins streaming messages from a topic.
  * Validates input, connects, subscribes, and runs the consumer. Supports AbortSignal for
@@ -59,43 +62,43 @@ export async function consumeMessages({
 
     const stopConsumer = async () => {
         if (!running) return;
-        console.log('Stopping consumer...');
+        logger.info('Stopping consumer...');
         running = false;
         try {
             await consumer.stop();
-            console.log('Consumer stopped');
+            logger.info('Consumer stopped');
         } catch (err) {
-            console.error('Error stopping consumer:', err);
+            logger.error('Error stopping consumer:', err);
         }
         try {
             await consumer.disconnect();
-            console.log('Consumer disconnected');
+            logger.info('Consumer disconnected');
         } catch (err) {
-            console.error('Error disconnecting consumer:', err);
+            logger.error('Error disconnecting consumer:', err);
         }
     };
 
     if (signal) {
         if (signal.aborted) {
-            console.log('Signal already aborted, stopping consumer immediately');
+            logger.warn('Signal already aborted, stopping consumer immediately');
             await stopConsumer();
         }
         signal.addEventListener('abort', stopConsumer, {once: true});
     }
 
-    console.log('Connecting to Kafka...');
+    logger.info('Connecting to Kafka...');
     await consumer.connect();
-    console.log('Connected to Kafka successfully');
+    logger.info('Connected to Kafka successfully');
     
-    console.log(`Subscribing to topic: ${topic}, fromBeginning: ${fromBeginning}`);
+    logger.info(`Subscribing to topic: ${topic}, fromBeginning: ${fromBeginning}`);
     await consumer.subscribe({topic, fromBeginning});
-    console.log('Subscribed to topic successfully');
+    logger.info('Subscribed to topic successfully');
 
     // Perform a readiness check via Kafka admin instead of a fixed sleep
-    console.log('Checking Kafka readiness (admin metadata)...');
+    logger.info('Checking Kafka readiness (admin metadata)...');
     await waitForKafkaConnectivity(kafka);
 
-    console.log('Starting consumer run loop with retry logic...');
+    logger.info('Starting consumer run loop with retry logic...');
     let retries = 0;
     const maxRetries = 3;
     let runPromise;
@@ -111,20 +114,20 @@ export async function consumeMessages({
                         const {topic, partition, message} = payload;
                         const key = message.key ? message.key.toString() : null;
                         const value = message.value ? message.value.toString() : null;
-                        console.log(`Consumed message topic=${topic} partition=${partition} key=${key} value=${value}`);
+                        logger.info(`Consumed message topic=${topic} partition=${partition} key=${key} value=${value}`);
                     }
                 },
             });
-            console.log('Consumer run loop started successfully');
+            logger.info('Consumer run loop started successfully');
             break; // Success, exit retry loop
         } catch (error) {
             retries++;
-            console.log(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
+            logger.warn(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
             if (retries < maxRetries) {
-                console.log('Retrying after readiness check...');
+                logger.info('Retrying after readiness check...');
                 await waitForKafkaConnectivity(kafka, 5000);
             } else {
-                console.error('Max retries reached, consumer failed to start');
+                logger.error('Max retries reached, consumer failed to start');
                 throw error;
             }
         }
@@ -171,12 +174,12 @@ export async function main(deps = { consumeMessages }) {
     process.on('SIGINT', () => ac.abort());
     process.on('SIGTERM', () => ac.abort());
     try {
-        console.log(`Starting consumer: topic=${cfg.topic}, brokers=${cfg.brokers}`);
+        logger.info(`Starting consumer: topic=${cfg.topic}, brokers=${cfg.brokers}`);
         const {runPromise} = await deps.consumeMessages({...cfg, signal});
         // Keep the process alive until the consumer stops (e.g., on SIGINT/SIGTERM)
         await runPromise;
     } catch (err) {
-        console.error('Consumer error:', err);
+        logger.error('Consumer error:', err);
         process.exitCode = 1;
     }
 }
