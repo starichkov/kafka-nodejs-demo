@@ -15,21 +15,9 @@ import {pathToFileURL} from 'url';
 
 const {Kafka, logLevel} = pkg;
 
-/**
- * Normalizes broker endpoints into an array of host:port strings.
- * Accepts either a comma-separated string ("host1:port1,host2:port2")
- * or an array of strings. Strips the optional "PLAINTEXT://" prefix.
- * @param {string|string[]} input Broker endpoints as a string or array.
- * @returns {string[]} Array of brokers in "host:port" format. Returns [] for invalid input.
- */
-export function parseBrokers(input) {
-    if (Array.isArray(input)) return input;
-    if (typeof input !== 'string') return [];
-    return input
-        .split(',')
-        .map((b) => b.trim().replace(/^PLAINTEXT:\/\//, ''))
-        .filter(Boolean);
-}
+// Re-exported from shared utils to avoid duplication across modules
+import {parseBrokers} from './utils.js';
+export {parseBrokers};
 
 /**
  * Produces a single message to a Kafka topic.
