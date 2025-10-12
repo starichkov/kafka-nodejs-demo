@@ -17,7 +17,7 @@ import path from 'path';
 const {Kafka, logLevel} = pkg;
 
 // Re-exported from shared utils to avoid duplication across modules
-import {parseBrokers} from './utils.js';
+import {parseBrokers, waitForKafkaConnectivity} from './utils.js';
 export {parseBrokers};
 
 /**
@@ -93,29 +93,7 @@ export async function consumeMessages({
 
     // Perform a readiness check via Kafka admin instead of a fixed sleep
     console.log('Checking Kafka readiness (admin metadata)...');
-    async function waitForKafkaConnectivity(timeoutMs = 10000) {
-        // In unit tests, the Kafka mock may not provide admin(); treat as ready
-        if (!kafka || typeof kafka.admin !== 'function') return;
-        const admin = kafka.admin();
-        const start = Date.now();
-        try {
-            await admin.connect();
-            // Poll describeCluster until it succeeds or timeout
-            for (;;) {
-                try {
-                    await admin.describeCluster();
-                    return; // ready
-                } catch {
-                    if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
-                    await new Promise(r => setTimeout(r, 250));
-                }
-            }
-        } finally {
-            try { await admin.disconnect(); } catch {}
-        }
-    }
-
-    await waitForKafkaConnectivity();
+    await waitForKafkaConnectivity(kafka);
 
     console.log('Starting consumer run loop with retry logic...');
     let retries = 0;
@@ -144,7 +122,7 @@ export async function consumeMessages({
             console.log(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
             if (retries < maxRetries) {
                 console.log('Retrying after readiness check...');
-                await waitForKafkaConnectivity(5000);
+                await waitForKafkaConnectivity(kafka, 5000);
             } else {
                 console.error('Max retries reached, consumer failed to start');
                 throw error;
