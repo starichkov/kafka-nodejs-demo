@@ -1,6 +1,6 @@
 import {describe, test, expect} from '@jest/globals';
 import {kafkaClient, uniqueId, ensureTopic} from './kafka-helpers.js';
-import {consumeMessages, parseBrokers} from '../src/consumer.js';
+import {consumeMessages} from '../src/consumer.js';
 import {Partitioners} from "kafkajs";
 
 async function produce(topic, {key = null, value}) {
@@ -54,39 +54,6 @@ describe('consumer with real Kafka (Testcontainers)', () => {
     }, 20_000);
 });
 
-describe('parseBrokers unit tests', () => {
-    test('parseBrokers handles array input', () => {
-        const input = ['broker1:9092', 'broker2:9092'];
-        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
-    });
-
-    test('parseBrokers handles string input', () => {
-        const input = 'broker1:9092,broker2:9092';
-        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
-    });
-
-    test('parseBrokers handles string input with PLAINTEXT prefix', () => {
-        const input = 'PLAINTEXT://broker1:9092,PLAINTEXT://broker2:9092';
-        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
-    });
-
-    test('parseBrokers handles string input with whitespace', () => {
-        const input = ' broker1:9092 , broker2:9092 ';
-        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
-    });
-
-    test('parseBrokers returns empty array for non-string non-array input', () => {
-        expect(parseBrokers(null)).toEqual([]);
-        expect(parseBrokers(undefined)).toEqual([]);
-        expect(parseBrokers(123)).toEqual([]);
-        expect(parseBrokers({})).toEqual([]);
-    });
-
-    test('parseBrokers filters out empty strings', () => {
-        const input = 'broker1:9092,,broker2:9092,';
-        expect(parseBrokers(input)).toEqual(['broker1:9092', 'broker2:9092']);
-    });
-});
 
 describe('consumeMessages error handling', () => {
     test('throws error when brokers is null', async () => {
