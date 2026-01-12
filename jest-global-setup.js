@@ -5,6 +5,7 @@
  * - Exposes the container and brokers on globalThis for tests and teardown
  */
 import {KafkaContainer} from "@testcontainers/kafka";
+import {Wait} from "testcontainers";
 import {Kafka} from "kafkajs";
 
 /**
@@ -47,18 +48,25 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
  */
 export default async () => {
     const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.5";
+    console.log(`[jest-global-setup] Starting Kafka container with image: ${image}`);
     const container = await new KafkaContainer(image)
-        .withStartupTimeout(12000)
-        // .withWaitStrategy(Wait.forHealthCheck())
-        // .withReuse()
+        .withStartupTimeout(30000)
+        .withWaitStrategy(Wait.forLogMessage(/(Kafka Server started|\[KafkaServer id=\d+\] started)/))
         .start();
 
-    const brokers = [`${container.getHost()}:${container.getMappedPort(9093)}`];
+    const host = container.getHost();
+    const port = container.getMappedPort(9093);
+    const brokers = [`${host}:${port}`];
+    console.log(`[jest-global-setup] Kafka container started. Brokers: ${brokers}`);
 
     // ✅ wait for controller and group coordinator to be reachable
     await waitForKafka(brokers);
+    console.log(`[jest-global-setup] Kafka is ready for connections.`);
 
     // Stash paths on global to read them in teardown (same process)
     globalThis.__kafka_container__ = {container};
     globalThis.__kafka_brokers__ = {brokers};
+    
+    // Also set environment variable for tests that might run in separate processes
+    process.env.KAFKA_BROKERS_DYNAMIC = brokers.join(',');
 };
