@@ -46,7 +46,7 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
  * @returns {Promise<void>}
  */
 export default async () => {
-    const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.3";
+    const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.5";
     const container = await new KafkaContainer(image)
         .withStartupTimeout(12000)
         // .withWaitStrategy(Wait.forHealthCheck())
@@ -57,10 +57,6 @@ export default async () => {
 
     // ✅ wait for controller and group coordinator to be reachable
     await waitForKafka(brokers);
-
-    // Save container id + brokers to a temp file visible to all workers
-    // const file = path.join(os.tmpdir(), `kafka-testcontainers-${process.pid}.json`);
-    // fs.writeFileSync(file, JSON.stringify({brokers, id: container.getId()}), "utf8");
 
     // Stash paths on global to read them in teardown (same process)
     globalThis.__kafka_container__ = {container};

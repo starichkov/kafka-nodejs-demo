@@ -17,6 +17,9 @@ describe('consumer with real Kafka (Testcontainers)', () => {
         const {brokers} = globalThis.__kafka_brokers__;
         const topic = uniqueId('t');
 
+        // Ensure topic exists before consuming to avoid "This server does not host this topic-partition"
+        await ensureTopic(kafkaClient(), topic);
+
         let firstMessage;
         const {stop, runPromise} = await consumeMessages({
             brokers,
@@ -91,11 +94,13 @@ describe('consumeMessages signal handling', () => {
         controller.abort(); // Abort before passing to consumeMessages
         
         const {brokers} = globalThis.__kafka_brokers__;
+        const topic = uniqueId('test-topic');
+        await ensureTopic(kafkaClient(), topic);
         
         // This should handle the already-aborted signal case
         const result = await consumeMessages({
             brokers,
-            topic: 'test-topic',
+            topic,
             signal: controller.signal,
             clientId: 'test-signal-client',
             groupId: 'test-signal-group'
@@ -112,10 +117,12 @@ describe('consumeMessages signal handling', () => {
     test('handles signal abort during consumption', async () => {
         const controller = new AbortController();
         const {brokers} = globalThis.__kafka_brokers__;
+        const topic = uniqueId('test-topic-signal');
+        await ensureTopic(kafkaClient(), topic);
         
         const result = await consumeMessages({
             brokers,
-            topic: 'test-topic-signal',
+            topic,
             signal: controller.signal,
             clientId: 'test-abort-client',
             groupId: 'test-abort-group'
@@ -135,6 +142,7 @@ describe('consumeMessages signal handling', () => {
     test('handles custom eachMessage function', async () => {
         const {brokers} = globalThis.__kafka_brokers__;
         const topic = uniqueId('custom-handler');
+        await ensureTopic(kafkaClient(), topic);
         
         let messageReceived = false;
         const customHandler = async (payload) => {
@@ -180,6 +188,7 @@ describe('consumeMessages signal handling', () => {
     test('handles undefined eachMessage with default logging', async () => {
         const {brokers} = globalThis.__kafka_brokers__;
         const topic = uniqueId('default-handler');
+        await ensureTopic(kafkaClient(), topic);
         
         const {stop, runPromise} = await consumeMessages({
             brokers,

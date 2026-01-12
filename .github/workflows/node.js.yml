@@ -13,8 +13,12 @@ jobs:
 
     strategy:
       matrix:
+        # See the supported Node.js release schedule at https://nodejs.org/en/about/releases
         node-version: [ 20, 22, 24 ]
-        # See the supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        kafka-image: [ "confluentinc/cp-kafka:7.9.5", "confluentinc/cp-kafka:8.1.1" ]
+        # confluentinc/cp-kafka:7.9.5 is Kafka 3.9.1
+        # confluentinc/cp-kafka:8.1.1 is Kafka 4.1.1
+        # https://docs.confluent.io/platform/current/installation/versions-interoperability.html
 
     steps:
       - name: Checkout code
@@ -33,15 +37,19 @@ jobs:
         run: npm run build --if-present
 
       - name: Run unit tests
-        if: matrix.node-version != 24
+        if: matrix.node-version != 24 || matrix.kafka-image != 'confluentinc/cp-kafka:7.9.5'
+        env:
+          KAFKA_IMAGE: ${{ matrix.kafka-image }}
         run: npm test
 
       - name: Run unit tests with coverage
-        if: matrix.node-version == 24
+        if: matrix.node-version == 24 && matrix.kafka-image == 'confluentinc/cp-kafka:7.9.5'
+        env:
+          KAFKA_IMAGE: ${{ matrix.kafka-image }}
         run: npm run test:coverage
 
       - name: Upload coverage to Codecov
-        if: matrix.node-version == 24
+        if: matrix.node-version == 24 && matrix.kafka-image == 'confluentinc/cp-kafka:7.9.5'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

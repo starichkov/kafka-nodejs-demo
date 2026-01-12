@@ -41,7 +41,8 @@ Replace host.docker.internal:9092 with the address of your Kafka broker.
 
 ### Run everything with docker-compose
 
-This will start a single Kafka broker (KRaft), the consumer, and then the producer.
+This will start a single Kafka broker (KRaft, version 3.9.1), the consumer, and then the producer. 
+The project is also compatible with Kafka 4.1.1.
 
 - Start:
   ```shell
