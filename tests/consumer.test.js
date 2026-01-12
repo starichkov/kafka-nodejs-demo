@@ -14,8 +14,12 @@ async function produce(topic, {key = null, value}) {
 
 describe('consumer with real Kafka (Testcontainers)', () => {
     test('consumeMessages consumes a produced message and can stop', async () => {
-        const {brokers} = globalThis.__kafka_brokers__;
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
         const topic = uniqueId('t');
+
+        // Ensure topic exists before consuming to avoid "This server does not host this topic-partition"
+        await ensureTopic(kafkaClient(), topic);
 
         let firstMessage;
         const {stop, runPromise} = await consumeMessages({
@@ -90,12 +94,15 @@ describe('consumeMessages signal handling', () => {
         const controller = new AbortController();
         controller.abort(); // Abort before passing to consumeMessages
         
-        const {brokers} = globalThis.__kafka_brokers__;
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('test-topic');
+        await ensureTopic(kafkaClient(), topic);
         
         // This should handle the already-aborted signal case
         const result = await consumeMessages({
             brokers,
-            topic: 'test-topic',
+            topic,
             signal: controller.signal,
             clientId: 'test-signal-client',
             groupId: 'test-signal-group'
@@ -111,11 +118,14 @@ describe('consumeMessages signal handling', () => {
 
     test('handles signal abort during consumption', async () => {
         const controller = new AbortController();
-        const {brokers} = globalThis.__kafka_brokers__;
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('test-topic-signal');
+        await ensureTopic(kafkaClient(), topic);
         
         const result = await consumeMessages({
             brokers,
-            topic: 'test-topic-signal',
+            topic,
             signal: controller.signal,
             clientId: 'test-abort-client',
             groupId: 'test-abort-group'
@@ -133,8 +143,10 @@ describe('consumeMessages signal handling', () => {
     }, 10_000);
 
     test('handles custom eachMessage function', async () => {
-        const {brokers} = globalThis.__kafka_brokers__;
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
         const topic = uniqueId('custom-handler');
+        await ensureTopic(kafkaClient(), topic);
         
         let messageReceived = false;
         const customHandler = async (payload) => {
@@ -178,8 +190,10 @@ describe('consumeMessages signal handling', () => {
     }, 15_000);
 
     test('handles undefined eachMessage with default logging', async () => {
-        const {brokers} = globalThis.__kafka_brokers__;
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
         const topic = uniqueId('default-handler');
+        await ensureTopic(kafkaClient(), topic);
         
         const {stop, runPromise} = await consumeMessages({
             brokers,

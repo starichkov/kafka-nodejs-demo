@@ -28,7 +28,8 @@ async function consumeOne(kafka, topic) {
 
 describe('producer with real Kafka (Testcontainers)', () => {
 
-    const {brokers} = globalThis.__kafka_brokers__;
+    const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+    const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
 
     const kafka = kafkaClient();
 

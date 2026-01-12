@@ -17,6 +17,11 @@ const LEVELS = {
     fatal: 60,
 };
 
+/**
+ * Parses the log level from a string.
+ * @param {string} [name] The level name.
+ * @returns {string} The normalized level name (defaults to 'info' if invalid).
+ */
 function parseLevel(name) {
     if (!name) return 'info';
     const key = String(name).toLowerCase();
@@ -26,6 +31,12 @@ function parseLevel(name) {
 const currentLevelName = parseLevel(process.env.LOG_LEVEL);
 const currentLevel = LEVELS[currentLevelName];
 
+/**
+ * Formats log arguments into a single string.
+ * Handles Error objects and stringifies plain objects.
+ * @param {any[]} args Arguments to format.
+ * @returns {string} Formatted string.
+ */
 function format(args) {
     // Join arguments similar to console, but include ISO timestamp and level
     return args
@@ -45,6 +56,11 @@ function format(args) {
         .join(' ');
 }
 
+/**
+ * Creates a logger function for a specific level.
+ * @param {string} levelName The level name (trace, debug, info, etc.).
+ * @returns {(...args: any[]) => void} Logger function.
+ */
 function makeLogger(levelName) {
     const levelNum = LEVELS[levelName];
     const useErr = levelNum >= LEVELS.error;

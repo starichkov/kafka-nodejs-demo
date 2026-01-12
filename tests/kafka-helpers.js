@@ -10,7 +10,13 @@ import {Kafka} from "kafkajs";
  * @returns {Kafka} KafkaJS client instance configured with the discovered brokers.
  */
 export function kafkaClient() {
-    const {brokers} = globalThis.__kafka_brokers__;
+    const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+    const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
+    
+    if (!brokers) {
+        throw new Error("Kafka brokers not initialized in global setup. Ensure globalSetup is running and sharing data correctly.");
+    }
+    
     return new Kafka({brokers});
 }
 
