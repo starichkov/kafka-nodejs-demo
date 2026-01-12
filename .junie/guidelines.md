@@ -6,12 +6,12 @@ A minimal Apache Kafka demo implemented in Node.js. It showcases a simple produc
 - Jest tests, including integration tests powered by Testcontainers (Kafka)
 - CI via GitHub Actions with Codecov coverage upload
 
-Last updated: 2026-01-12 20:33 (local)
+Last updated: 2026-01-12 21:26 (local)
 
 ---
 
 ## Tech Stack
-- Node.js (ESM, requires Node 24+, compatible with v20 and v22)
+- Node.js (ESM, requires Node 20+, compatible with v22 and v24)
 - KafkaJS for Kafka client
 - Jest for testing (+ @testcontainers/kafka)
 - Docker and Docker Compose for local infra and app containers
@@ -31,6 +31,7 @@ Last updated: 2026-01-12 20:33 (local)
 │  ├─ utils.js               # Shared helpers (parseBrokers, waitForKafkaConnectivity)
 │  └─ logger.js              # Lightweight leveled logger
 ├─ tests/                    # Jest unit + integration tests
+│  └─ kafka-helpers.js       # Common test utilities (client, topics)
 ├─ jest-global-setup.js      # Starts Kafka Testcontainers and waits for readiness
 ├─ jest-global-teardown.js   # Stops Kafka Testcontainers
 ├─ .github/workflows/node.js.yml  # CI pipeline
@@ -106,7 +107,7 @@ Producer-only:
 
 Infrastructure / tooling:
 - `LOG_LEVEL`       (logger; one of `trace|debug|info|warn|error|fatal`; default: `info`)
-- `KAFKA_IMAGE`     (Jest Testcontainers; default in setup: `confluentinc/cp-kafka:7.9.3`)
+- `KAFKA_IMAGE`     (Jest Testcontainers; default in setup: `confluentinc/cp-kafka:7.9.5`)
 
 ## Code Highlights
 - `src/producer.js`
@@ -140,7 +141,8 @@ npm run test:coverage
 ## CI
 - GitHub Actions workflow: `.github/workflows/node.js.yml`
   - Matrix on Node 20, 22, and 24
-  - Coverage and Codecov upload on Node 24
+  - Matrix on `KAFKA_IMAGE` (Kafka 3.9.1 / 4.1.1)
+  - Coverage and Codecov upload on Node 24 with `cp-kafka:7.9.5` (Kafka 3.9.1)
 
 ## Docker Images
 - `consumer.Dockerfile` → runs `node src/consumer.js`

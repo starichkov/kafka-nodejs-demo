@@ -81,13 +81,32 @@ npm run start:producer
 
 ### Configuration (env vars and defaults)
 
-- `KAFKA_BROKERS`: Kafka broker list (default: localhost:9092)
-- `KAFKA_CLIENT_ID`: client id (default: kafka-nodejs-demo)
-- `KAFKA_GROUP_ID`: consumer group id (consumer only; default: kafka-nodejs-demo-group)
-- `KAFKA_TOPIC`: topic name (default: demo-topic)
-- `FROM_BEGINNING`: read from beginning (consumer only; default: true)
-- `MESSAGE`: message value to send (producer only; default: "hello from producer")
+- `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
+- `KAFKA_CLIENT_ID`: client id (default: `kafka-nodejs-demo`)
+- `KAFKA_GROUP_ID`: consumer group id (consumer only; default: `kafka-nodejs-demo-group`)
+- `KAFKA_TOPIC`: topic name (default: `demo-topic`)
+- `FROM_BEGINNING`: read from beginning (consumer only; default: `true`)
+- `MESSAGE`: message value to send (producer only; default: `"hello from producer"`)
 - `KEY`: optional message key (producer only; default: unset)
+- `LOG_LEVEL`: logger level, one of `trace|debug|info|warn|error|fatal` (default: `info`)
+
+## 🧪 Testing
+
+The project uses Jest for unit and integration testing. Integration tests use [Testcontainers](https://testcontainers.com/) to spin up a real Kafka instance.
+
+### Run tests locally
+
+```shell
+npm test
+```
+
+### Run tests with coverage
+
+```shell
+npm run test:coverage
+```
+
+The coverage report will be generated in the `coverage/` directory.
 
 ## 🧾 About TemplateTasks
 
