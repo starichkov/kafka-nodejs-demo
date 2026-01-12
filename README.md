@@ -12,11 +12,11 @@ A minimal Apache Kafka demo using Node.js.
 
 These are the versions this sample app is coming with:
 
-- Node.js (v22 or higher)
+- Node.js (v24 or higher; compatible with v20 and v22)
 - npm or pnpm
 - Docker and Docker Compose (optional)
 
-Stable work on lower versions is not guaranteed.
+Stable work on versions lower than v20 is not guaranteed.
 
 ## 🚀 How to Run
 
@@ -110,4 +110,4 @@ Based on kafka-nodejs-demo by Vadim Starichkov, TemplateTasks
 https://github.com/starichkov/kafka-nodejs-demo
 ```
 
-**Copyright © 2025 Vadim Starichkov, TemplateTasks**
+**Copyright © 2026 Vadim Starichkov, TemplateTasks**

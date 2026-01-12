@@ -6,12 +6,12 @@ A minimal Apache Kafka demo implemented in Node.js. It showcases a simple produc
 - Jest tests, including integration tests powered by Testcontainers (Kafka)
 - CI via GitHub Actions with Codecov coverage upload
 
-Last updated: 2025-11-07 22:25 (local)
+Last updated: 2026-01-12 20:33 (local)
 
 ---
 
 ## Tech Stack
-- Node.js (ESM, requires Node 22+)
+- Node.js (ESM, requires Node 24+, compatible with v20 and v22)
 - KafkaJS for Kafka client
 - Jest for testing (+ @testcontainers/kafka)
 - Docker and Docker Compose for local infra and app containers
@@ -139,8 +139,8 @@ npm run test:coverage
 
 ## CI
 - GitHub Actions workflow: `.github/workflows/node.js.yml`
-  - Matrix on Node 22.x and 24.x
-  - Coverage and Codecov upload on Node 22.x
+  - Matrix on Node 20, 22, and 24
+  - Coverage and Codecov upload on Node 24
 
 ## Docker Images
 - `consumer.Dockerfile` → runs `node src/consumer.js`
@@ -150,7 +150,7 @@ See `documentation/docker.md` for manual build/run examples.
 ## Troubleshooting
 - Kafka not ready: the app waits for readiness, but if you see timeouts, ensure port 9092 is free and Docker is healthy.
 - Mixed topic names: code defaults to `demo-topic`; Docker Compose uses `kafka-nodejs-demo-topic`. Set `KAFKA_TOPIC` explicitly to avoid confusion.
-- Node version: ensure Node 22+ when running locally (ESM, flags in Jest scripts rely on recent Node).
+- Node version: ensure Node 20+ when running locally (ESM, flags in Jest scripts rely on recent Node).
 - Windows Docker networking: use `host.docker.internal:9092` inside containers if pointing to a host Kafka.
 
 ## License & Attribution
