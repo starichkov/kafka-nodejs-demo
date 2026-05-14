@@ -107,7 +107,7 @@ Producer-only:
 
 Infrastructure / tooling:
 - `LOG_LEVEL`       (logger; one of `trace|debug|info|warn|error|fatal`; default: `info`)
-- `KAFKA_IMAGE`     (Jest Testcontainers; default in setup: `confluentinc/cp-kafka:7.9.5`)
+- `KAFKA_IMAGE`     (Jest Testcontainers; default in setup: `confluentinc/cp-kafka:7.9.6`)
 
 ## Code Highlights
 - `src/producer.js`
@@ -141,8 +141,8 @@ npm run test:coverage
 ## CI
 - GitHub Actions workflow: `.github/workflows/node.js.yml`
   - Matrix on Node 22 and 24
-  - Matrix on `KAFKA_IMAGE` (Kafka 3.9.1 / 4.1.1)
-  - Coverage and Codecov upload on Node 22 with `cp-kafka:7.9.5` (Kafka 3.9.1)
+  - Matrix on `KAFKA_IMAGE` (Kafka 3.9.2 / 4.1.2)
+  - Coverage and Codecov upload on Node 22 with `cp-kafka:7.9.6` (Kafka 3.9.2)
 
 ## Docker Images
 - `consumer.Dockerfile` → runs `node src/consumer.js`

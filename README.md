@@ -15,7 +15,7 @@ These are the versions this sample app is coming with:
 - Node.js (v22 or higher)
 - npm or pnpm
 - Docker and Docker Compose (optional)
-- Apache Kafka 3.9.1 or 4.1.1 (tested and supported; 3.9.1 is the primary version)
+- Apache Kafka 3.9.2 or 4.1.2 (tested and supported; 3.9.2 is the primary version)
 
 Stable work on versions lower than v22 is not guaranteed.
 
