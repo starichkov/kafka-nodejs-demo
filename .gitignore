@@ -145,3 +145,6 @@ public
 # OS files
 .DS_Store
 Thumbs.db
+
+# AI files
+.junie/memory

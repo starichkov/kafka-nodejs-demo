@@ -11,7 +11,7 @@ Last updated: 2026-01-12 21:26 (local)
 ---
 
 ## Tech Stack
-- Node.js (ESM, requires Node 20+, compatible with v22 and v24)
+- Node.js (ESM, requires Node 22+, compatible with v24)
 - KafkaJS for Kafka client
 - Jest for testing (+ @testcontainers/kafka)
 - Docker and Docker Compose for local infra and app containers
@@ -140,9 +140,9 @@ npm run test:coverage
 
 ## CI
 - GitHub Actions workflow: `.github/workflows/node.js.yml`
-  - Matrix on Node 20, 22, and 24
+  - Matrix on Node 22 and 24
   - Matrix on `KAFKA_IMAGE` (Kafka 3.9.1 / 4.1.1)
-  - Coverage and Codecov upload on Node 24 with `cp-kafka:7.9.5` (Kafka 3.9.1)
+  - Coverage and Codecov upload on Node 22 with `cp-kafka:7.9.5` (Kafka 3.9.1)
 
 ## Docker Images
 - `consumer.Dockerfile` → runs `node src/consumer.js`
@@ -152,7 +152,7 @@ See `documentation/docker.md` for manual build/run examples.
 ## Troubleshooting
 - Kafka not ready: the app waits for readiness, but if you see timeouts, ensure port 9092 is free and Docker is healthy.
 - Mixed topic names: code defaults to `demo-topic`; Docker Compose uses `kafka-nodejs-demo-topic`. Set `KAFKA_TOPIC` explicitly to avoid confusion.
-- Node version: ensure Node 20+ when running locally (ESM, flags in Jest scripts rely on recent Node).
+- Node version: ensure Node 22+ when running locally (ESM, flags in Jest scripts rely on recent Node).
 - Windows Docker networking: use `host.docker.internal:9092` inside containers if pointing to a host Kafka.
 
 ## License & Attribution
