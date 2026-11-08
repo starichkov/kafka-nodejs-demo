@@ -10,12 +10,17 @@ A minimal Apache Kafka demo using Node.js.
 
 ## ⚙️ Requirements
 
-These are the versions this sample app is coming with:
+The compatibility targets for this sample are summarized below. CI tests every combination of the listed Node.js and Kafka distributions.
 
-- Node.js (v22, v24, or v26; v26 is the primary development and runtime version)
-- npm or pnpm
-- Docker and Docker Compose (optional)
-- Apache Kafka 3.9.2 or 4.3.2 (tested and supported; 3.9.2 is the primary version)
+| Component | Supported/tested versions | Where it is used |
+| --- | --- | --- |
+| Node.js | 22, 24, and 26; 26 is the primary development version | Local commands, application images, and CI |
+| Kafka | 3.9.2 and 4.3.2 | Testcontainers and CI compatibility matrix |
+| KafkaJS | `^2.2.4` | Node.js producer and consumer dependency |
+| Compose Kafka image | `apache/kafka:3.9.2` | Default local Docker Compose flow |
+| CI Kafka images | `confluentinc/cp-kafka:7.9.6` (Kafka 3.9.2) and `confluentinc/cp-kafka:8.3.2` (Kafka 4.3.2) | GitHub Actions integration tests |
+| Package manager | npm with `npm ci`; pnpm may also be used locally | Dependency installation |
+| Docker Compose | Docker and Compose compatible with the commands below | Optional local broker and smoke test |
 
 Stable work on versions lower than v22 is not guaranteed. CI verifies compatibility with Node.js v22, v24, and v26.
 
