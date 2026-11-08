@@ -86,7 +86,7 @@ describe('consumer with real Kafka (Testcontainers)', () => {
         );
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const producer = kafka.producer();
+        const producer = kafka.producer({ createPartitioner: Partitioners.DefaultPartitioner });
         await producer.connect();
         await producer.send({
             topic,
@@ -197,11 +197,15 @@ describe('consumeMessages signal handling', () => {
             groupId: 'test-abort-group',
         });
 
-        // Abort after starting
-        setTimeout(() => controller.abort(), 100);
+        // Abort after starting and let the signal own the shutdown.
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                controller.abort();
+                resolve();
+            }, 100);
+        });
 
         // Should handle the abort gracefully
-        await result.stop();
         await result.runPromise;
 
         expect(result.stop).toBeDefined();

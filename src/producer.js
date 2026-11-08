@@ -13,7 +13,7 @@
 import pkg from 'kafkajs';
 import { pathToFileURL } from 'url';
 
-const { Kafka, logLevel } = pkg;
+const { Kafka, logLevel, Partitioners } = pkg;
 
 // Re-exported from shared utils to avoid duplication across modules
 import { parseBrokers, waitForKafkaConnectivity } from './utils.js';
@@ -59,7 +59,7 @@ export async function produceMessage({
     }
 
     const kafka = new Kafka({ clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING });
-    const producer = kafka.producer();
+    const producer = kafka.producer({ createPartitioner: Partitioners.DefaultPartitioner });
 
     // Perform a readiness check via Kafka admin instead of relying on timing
     logger.info('Checking Kafka readiness (producer admin metadata)...');

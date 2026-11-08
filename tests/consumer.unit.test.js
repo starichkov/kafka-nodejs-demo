@@ -9,7 +9,8 @@ async function importConsumerWithMocks({
 } = {}) {
     jest.resetModules();
     if (useFakeTimers) {
-        jest.useFakeTimers();
+        // Preserve the wall clock used by KafkaJS while controlling the retry delay.
+        jest.useFakeTimers({ doNotFake: ['Date'] });
     }
 
     if (kafkajsMockFactory) {
@@ -175,6 +176,7 @@ describe('isDirectRun edge cases', () => {
         const mod = await importConsumerWithMocks({
             kafkajsMockFactory: () => ({ default: { Kafka, logLevel: { INFO: 4 } }, Kafka, logLevel: { INFO: 4 } }),
             setArgvToConsumer: true,
+            useFakeTimers: true,
         });
 
         // Flush the 5s wait
