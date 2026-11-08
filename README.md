@@ -104,6 +104,8 @@ Finally, try [Lesson 5: Failures, retries, and dead-letter topics](documentation
 
 Then continue with [Lesson 6: Producer acknowledgments, retries, and idempotence](documentation/lesson-06-acknowledgments-retries-and-idempotence.md) to compare broker acknowledgment levels with KafkaJS retry behavior and idempotent publishing.
 
+Then try [Lesson 7: Topic administration and safe cleanup](documentation/lesson-07-topic-administration.md) to list topics, inspect partition metadata, compare it with offset ranges, and safely delete a disposable topic.
+
 Read [Lifecycle and delivery semantics](documentation/lifecycle-and-delivery-semantics.md) for the complete record lifecycle, coordinated shutdown behavior, offset and retry boundaries, and the guarantees this educational demo intentionally does not provide.
 
 ### Configuration (env vars and defaults)
@@ -123,6 +125,8 @@ Read [Lifecycle and delivery semantics](documentation/lifecycle-and-delivery-sem
 - `PRODUCER_ACKS`: broker acknowledgment level `-1`, `0`, or `1` (producer only; default: `-1`)
 - `PRODUCER_RETRIES`: KafkaJS network/protocol retry limit (producer only; default: `5`)
 - `PRODUCER_IDEMPOTENT`: enable idempotent producer mode; requires `PRODUCER_ACKS=-1` (producer only; default: `false`)
+- `KAFKA_ADMIN_ACTION`: topic-admin operation `inspect|list|metadata|delete` (default: `inspect`)
+- `KAFKA_DELETE_CONFIRMED`: must be `true` to allow `delete` (default: `false`)
 - `FAIL_ON_KEY`: intentionally fail records with this key (consumer only; default: unset)
 - `FAIL_ON_VALUE`: intentionally fail records with this value (consumer only; default: unset)
 - `MAX_RETRIES`: application-level retries after the first attempt (consumer only; default: `0`)

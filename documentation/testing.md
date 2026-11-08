@@ -38,7 +38,7 @@ Mocking is intentional here: it makes rare branches such as a failed dead-letter
 
 - `tests/producer.test.js` verifies that records reach Kafka and that returned topic, partition, offset, key, headers, and timestamp metadata are usable.
 - `tests/consumer.test.js` verifies consumer delivery, consumer groups, partition sharing, retries, and dead-letter behavior against a real broker.
-- `tests/topic-admin.test.js` verifies beginning/end offset inspection and topic-admin validation against Kafka.
+- `tests/topic-admin.test.js` verifies topic listing, partition metadata, beginning/end offset inspection, safe deletion, and topic-admin validation against Kafka.
 - `tests/kafka-helpers.js` provides disposable topics and groups so tests do not depend on retained data from another run.
 
 These tests teach the boundary between application code and Kafka. They are slower and require Docker, but they catch incorrect topic names, broker protocol assumptions, partition assignment, offset behavior, and metadata handling that mocks cannot catch.

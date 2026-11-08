@@ -148,7 +148,17 @@ describe('configFromEnv (topic admin)', () => {
             brokers: 'localhost:9092',
             topic: 'demo-topic',
             clientId: 'kafka-nodejs-topic-admin',
+            action: 'inspect',
+            confirmed: false,
         });
+    });
+
+    test('parses administration action and deletion confirmation', () => {
+        process.env.KAFKA_ADMIN_ACTION = 'delete';
+        process.env.KAFKA_DELETE_CONFIRMED = 'true';
+
+        expect(topicAdmin.configFromEnv().action).toBe('delete');
+        expect(topicAdmin.configFromEnv().confirmed).toBe(true);
     });
 
     test('reports offsets through the injected inspection function', async () => {
@@ -168,6 +178,43 @@ describe('configFromEnv (topic admin)', () => {
     test('sets exitCode=1 when inspection fails', async () => {
         await topicAdmin.main({ inspectTopic: jest.fn().mockRejectedValue(new Error('boom')) });
         expect(process.exitCode).toBe(1);
+    });
+
+    test('lists topics through the injected list function', async () => {
+        process.env.KAFKA_ADMIN_ACTION = 'list';
+        const listTopics = jest.fn().mockResolvedValue(['demo-topic']);
+
+        await topicAdmin.main({ listTopics });
+
+        expect(listTopics).toHaveBeenCalledWith({
+            brokers: 'localhost:9092',
+            clientId: 'kafka-nodejs-topic-admin',
+        });
+        expect(process.exitCode).toBe(0);
+    });
+
+    test('reports topic metadata through the injected metadata function', async () => {
+        process.env.KAFKA_ADMIN_ACTION = 'metadata';
+        const inspectTopicMetadata = jest.fn().mockResolvedValue({
+            name: 'demo-topic',
+            partitions: [{ partitionId: 0, leader: 1, replicas: [1], isr: [1] }],
+        });
+
+        await topicAdmin.main({ inspectTopicMetadata });
+
+        expect(inspectTopicMetadata).toHaveBeenCalled();
+        expect(process.exitCode).toBe(0);
+    });
+
+    test('deletes only through the injected function with explicit confirmation', async () => {
+        process.env.KAFKA_ADMIN_ACTION = 'delete';
+        process.env.KAFKA_DELETE_CONFIRMED = 'true';
+        const deleteTopic = jest.fn().mockResolvedValue(['demo-topic']);
+
+        await topicAdmin.main({ deleteTopic });
+
+        expect(deleteTopic).toHaveBeenCalledWith(expect.objectContaining({ confirmed: true }));
+        expect(process.exitCode).toBe(0);
     });
 });
 

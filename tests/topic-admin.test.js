@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach } from '@jest/globals';
-import { inspectTopic, isDirectRun } from '../src/topic-admin.js';
+import { deleteTopic, inspectTopic, inspectTopicMetadata, isDirectRun, listTopics } from '../src/topic-admin.js';
 import { kafkaClient, uniqueId, ensureTopic } from './kafka-helpers.js';
 import { produceMessage } from '../src/producer.js';
 
@@ -29,6 +29,42 @@ describe('topic inspection with real Kafka (Testcontainers)', () => {
             ]),
         );
     });
+
+    test('lists topics and returns partition metadata', async () => {
+        const brokers = process.env.KAFKA_BROKERS_DYNAMIC
+            ? process.env.KAFKA_BROKERS_DYNAMIC.split(',')
+            : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('admin');
+        const kafka = kafkaClient();
+        await ensureTopic(kafka, topic, 2);
+
+        const topics = await listTopics({ brokers });
+        const metadata = await inspectTopicMetadata({ brokers, topic });
+
+        expect(topics).toContain(topic);
+        expect(metadata).toEqual(
+            expect.objectContaining({
+                name: topic,
+                partitions: expect.arrayContaining([
+                    expect.objectContaining({ partitionId: 0 }),
+                    expect.objectContaining({ partitionId: 1 }),
+                ]),
+            }),
+        );
+    });
+
+    test('deletes a topic only when confirmed', async () => {
+        const brokers = process.env.KAFKA_BROKERS_DYNAMIC
+            ? process.env.KAFKA_BROKERS_DYNAMIC.split(',')
+            : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('delete');
+        const kafka = kafkaClient();
+        await ensureTopic(kafka, topic);
+
+        await expect(deleteTopic({ brokers, topic })).rejects.toThrow('explicit confirmation');
+        await expect(deleteTopic({ brokers, topic, confirmed: true })).resolves.toBeUndefined();
+        await expect(inspectTopicMetadata({ brokers, topic })).rejects.toThrow();
+    });
 });
 
 describe('topic-admin direct-run detection', () => {
@@ -46,5 +82,15 @@ describe('topic inspection validation', () => {
 
     test('requires topic', async () => {
         await expect(inspectTopic({ brokers: ['localhost:9092'], topic: '' })).rejects.toThrow('topic is required');
+    });
+
+    test('requires brokers for listing', async () => {
+        await expect(listTopics({ brokers: [] })).rejects.toThrow('brokers is required');
+    });
+
+    test('requires confirmation for deletion', async () => {
+        await expect(deleteTopic({ brokers: ['localhost:9092'], topic: 'topic' })).rejects.toThrow(
+            'explicit confirmation',
+        );
     });
 });

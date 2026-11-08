@@ -62,6 +62,8 @@ describe('Configuration and CLI functionality', () => {
                 brokers: 'broker-a:9092,broker-b:9092',
                 topic: 'lesson-topic',
                 clientId: 'topic-inspector',
+                action: 'inspect',
+                confirmed: false,
             });
         });
 
