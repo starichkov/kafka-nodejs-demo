@@ -124,8 +124,16 @@ export async function consumeMessages({
                         const key = message.key ? message.key.toString() : null;
                         const value = message.value ? message.value.toString() : null;
                         const timestamp = message.timestamp ?? null;
+                        const headers = Object.fromEntries(
+                            Object.entries(message.headers ?? {}).map(([name, headerValue]) => [
+                                name,
+                                Array.isArray(headerValue)
+                                    ? headerValue.map((item) => item?.toString() ?? null)
+                                    : (headerValue?.toString() ?? null),
+                            ]),
+                        );
                         logger.info(
-                            `Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} key=${key} value=${value}`,
+                            `Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} headers=${JSON.stringify(headers)} key=${key} value=${value}`,
                         );
                     }
                 },

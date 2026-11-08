@@ -54,6 +54,43 @@ describe('producer with real Kafka (Testcontainers)', () => {
         expect(msg).toEqual({ key: null, value: JSON.stringify({ a: 1 }) });
     });
 
+    test('produceMessage preserves headers and timestamp', async () => {
+        const topic = uniqueId();
+        await ensureTopic(kafka, topic);
+        const timestamp = '1700000000000';
+        await produceMessage({
+            brokers,
+            topic,
+            message: 'with metadata',
+            headers: { 'trace-id': 'abc-123', flags: ['lesson', 'four'] },
+            timestamp,
+        });
+
+        const groupId = uniqueId('g');
+        const consumer = kafka.consumer({ groupId });
+        let received;
+        await consumer.connect();
+        await consumer.subscribe({ topic, fromBeginning: true });
+        await new Promise((resolve, reject) => {
+            consumer
+                .run({
+                    eachMessage: async ({ message }) => {
+                        received = message;
+                        resolve();
+                    },
+                })
+                .catch(reject);
+        });
+        await consumer.stop();
+        await consumer.disconnect();
+
+        expect(received.headers).toEqual({
+            'trace-id': Buffer.from('abc-123'),
+            flags: [Buffer.from('lesson'), Buffer.from('four')],
+        });
+        expect(received.timestamp).toBe(timestamp);
+    });
+
     test('produceMessage keeps same-key records ordered in one partition', async () => {
         const topic = uniqueId();
         await ensureTopic(kafka, topic, 3);
@@ -166,6 +203,12 @@ describe('produceMessage message formatting', () => {
         expect(buildMessages({ message: 'hello', key: 7, messageCount: 2, partition: 1 })).toEqual([
             { key: '7', value: 'hello-1', partition: 1 },
             { key: '7', value: 'hello-2', partition: 1 },
+        ]);
+    });
+
+    test('buildMessages adds headers and timestamp', () => {
+        expect(buildMessages({ message: 'hello', headers: { 'trace-id': 'abc' }, timestamp: 1700000000000 })).toEqual([
+            { key: null, value: 'hello', headers: { 'trace-id': 'abc' }, timestamp: '1700000000000' },
         ]);
     });
 

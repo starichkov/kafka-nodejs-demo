@@ -10,6 +10,7 @@
   "scripts": {
     "start:producer": "node src/producer.js",
     "start:consumer": "node src/consumer.js",
+    "inspect:topic": "node src/topic-admin.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --coverage",
     "test:docker": "./test-docker-compose.sh",

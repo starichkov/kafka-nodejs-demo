@@ -8,7 +8,7 @@ Apache Kafka Node.js Demo
 
 A minimal Apache Kafka demo using Node.js.
 
-## ⚙️ Requirements
+## Requirements
 
 The compatibility targets for this sample are summarized below. CI tests every combination of the listed Node.js and Kafka distributions.
 
@@ -24,7 +24,7 @@ The compatibility targets for this sample are summarized below. CI tests every c
 
 Stable work on versions lower than v22 is not guaranteed. CI verifies compatibility with Node.js v22, v24, and v26.
 
-## 🚀 How to Run
+## How to Run
 
 ### Option 1: Quickstart with Docker Compose
 
@@ -96,6 +96,8 @@ Then continue with [Lesson 2: Consumer groups, offsets, and replay](documentatio
 
 Then continue with [Lesson 3: Partitions, keys, ordering, and parallel consumers](documentation/lesson-03-partitions-and-ordering.md) to create a three-partition topic, observe same-key ordering, and share partitions between consumers in one group.
 
+Then continue with [Lesson 4: Headers, timestamps, and record inspection](documentation/lesson-04-headers-timestamps-and-inspection.md) to attach metadata to records and inspect each partition's beginning and end offsets.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
@@ -108,6 +110,8 @@ Then continue with [Lesson 3: Partitions, keys, ordering, and parallel consumers
 - `KEY`: optional message key (producer only; default: unset)
 - `MESSAGE_COUNT`: number of records to send (producer only; default: `1`; values become `MESSAGE-1`, `MESSAGE-2`, ... when greater than one)
 - `PARTITION`: optional non-negative partition number for every produced record (producer only; default: broker partition selection)
+- `MESSAGE_HEADERS`: optional JSON object of Kafka record headers (producer only; default: unset)
+- `MESSAGE_TIMESTAMP`: optional record timestamp in milliseconds (producer only; default: broker timestamp)
 - `LOG_LEVEL`: logger level, one of `trace|debug|info|warn|error|fatal` (default: `info`)
 
 To send a deterministic batch, keep the consumer running and use the same key for all records:
@@ -118,7 +122,9 @@ MESSAGE="lesson-03" KEY=sequence MESSAGE_COUNT=3 npm run start:producer
 
 The producer logs one topic/partition/offset line per record. A shared key normally sends the batch to one partition, making the `-1`, `-2`, `-3` ordering easy to observe.
 
-## 🧪 Testing
+Inspect the retained offset range for the configured topic with `npm run inspect:topic`.
+
+## Testing
 
 The project uses Jest for unit and integration testing. Integration tests use [Testcontainers](https://testcontainers.com/) to spin up a real Kafka instance.
 
@@ -146,7 +152,7 @@ npm run test:docker
 
 The script builds the application images, starts the Compose stack, waits for the expected message, prints the container status, and cleans up containers and volumes automatically. Docker and Docker Compose are required.
 
-## 🧾 About TemplateTasks
+## About TemplateTasks
 
 TemplateTasks is a personal software development initiative by Vadim Starichkov, focused on sharing open-source libraries, services, and technical demos.
 
@@ -154,7 +160,7 @@ It operates independently and outside the scope of any employment.
 
 All code is released under permissive open-source licenses. The legal structure may evolve as the project grows.
 
-## 📄 License & Attribution
+## License & Attribution
 
 This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/starichkov/kafka-nodejs-demo/blob/main/LICENSE.md) file for details.
 

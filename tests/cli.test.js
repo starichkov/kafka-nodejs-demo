@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import * as producer from '../src/producer.js';
 import * as consumer from '../src/consumer.js';
+import * as topicAdmin from '../src/topic-admin.js';
 
 const ORIGINAL_ENV = process.env;
 
@@ -26,6 +27,8 @@ describe('configFromEnv (producer)', () => {
         delete process.env.KEY;
         delete process.env.MESSAGE_COUNT;
         delete process.env.PARTITION;
+        delete process.env.MESSAGE_HEADERS;
+        delete process.env.MESSAGE_TIMESTAMP;
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -36,6 +39,8 @@ describe('configFromEnv (producer)', () => {
             key: undefined,
             messageCount: 1,
             partition: undefined,
+            headers: undefined,
+            timestamp: undefined,
         });
     });
 
@@ -47,6 +52,8 @@ describe('configFromEnv (producer)', () => {
         process.env.KEY = 'kk';
         process.env.MESSAGE_COUNT = '3';
         process.env.PARTITION = '1';
+        process.env.MESSAGE_HEADERS = '{"trace-id":"abc"}';
+        process.env.MESSAGE_TIMESTAMP = '1700000000000';
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -57,6 +64,8 @@ describe('configFromEnv (producer)', () => {
             key: 'kk',
             messageCount: 3,
             partition: 1,
+            headers: { 'trace-id': 'abc' },
+            timestamp: '1700000000000',
         });
     });
 });
@@ -94,6 +103,39 @@ describe('configFromEnv (consumer)', () => {
             topic: 't2',
             fromBeginning: false,
         });
+    });
+});
+
+describe('configFromEnv (topic admin)', () => {
+    test('returns topic inspection defaults', () => {
+        delete process.env.KAFKA_BROKERS;
+        delete process.env.KAFKA_CLIENT_ID;
+        delete process.env.KAFKA_TOPIC;
+
+        expect(topicAdmin.configFromEnv()).toEqual({
+            brokers: 'localhost:9092',
+            topic: 'demo-topic',
+            clientId: 'kafka-nodejs-topic-admin',
+        });
+    });
+
+    test('reports offsets through the injected inspection function', async () => {
+        process.env.KAFKA_TOPIC = 'lesson-topic';
+        const inspectTopic = jest.fn().mockResolvedValue([{ partition: 0, low: '0', high: '2' }]);
+
+        await topicAdmin.main({ inspectTopic });
+
+        expect(inspectTopic).toHaveBeenCalledWith({
+            brokers: 'localhost:9092',
+            topic: 'lesson-topic',
+            clientId: 'kafka-nodejs-topic-admin',
+        });
+        expect(process.exitCode).toBe(0);
+    });
+
+    test('sets exitCode=1 when inspection fails', async () => {
+        await topicAdmin.main({ inspectTopic: jest.fn().mockRejectedValue(new Error('boom')) });
+        expect(process.exitCode).toBe(1);
     });
 });
 

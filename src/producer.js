@@ -34,6 +34,8 @@ import logger from './logger.js';
  * @param {string|number|null} [params.key] Optional key associated with the message (will be stringified; null if undefined).
  * @param {number} [params.messageCount=1] Number of records to send. Values are suffixed with `-1`, `-2`, etc. when greater than one.
  * @param {number} [params.partition] Optional partition to which every record is sent.
+ * @param {Record<string, string|string[]|Buffer|Buffer[]>} [params.headers] Optional record headers.
+ * @param {string|number} [params.timestamp] Optional Kafka record timestamp in milliseconds.
  * @throws {Error} If brokers, topic, or message are not provided.
  * @returns {Promise<import('kafkajs').RecordMetadata[]>} Kafka metadata for the sent record(s).
  */
@@ -45,6 +47,8 @@ export async function produceMessage({
     key,
     messageCount = 1,
     partition,
+    headers,
+    timestamp,
 }) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
@@ -68,7 +72,7 @@ export async function produceMessage({
     await producer.connect();
     try {
         const metadata = [];
-        for (const record of buildMessages({ message, key, messageCount, partition })) {
+        for (const record of buildMessages({ message, key, messageCount, partition, headers, timestamp })) {
             const result = await producer.send({ topic, messages: [record] });
             metadata.push(...result);
         }
@@ -81,10 +85,10 @@ export async function produceMessage({
 /**
  * Builds the KafkaJS records for a producer request.
  * The default single-record shape remains unchanged; batch records use a deterministic suffix so their order is visible.
- * @param {{message: unknown, key?: string|number|null, messageCount?: number, partition?: number}} params Record options.
- * @returns {Array<{key: string|null, value: string|Buffer, partition?: number}>} KafkaJS-compatible records.
+ * @param {{message: unknown, key?: string|number|null, messageCount?: number, partition?: number, headers?: Record<string, string|string[]|Buffer|Buffer[]>, timestamp?: string|number}} params Record options.
+ * @returns {Array<{key: string|null, value: string|Buffer, partition?: number, headers?: Record<string, string|string[]|Buffer|Buffer[]>, timestamp?: string|number}>} KafkaJS-compatible records.
  */
-export function buildMessages({ message, key, messageCount = 1, partition }) {
+export function buildMessages({ message, key, messageCount = 1, partition, headers, timestamp }) {
     if (!Number.isInteger(messageCount) || messageCount < 1) {
         throw new Error('messageCount must be a positive integer');
     }
@@ -96,14 +100,17 @@ export function buildMessages({ message, key, messageCount = 1, partition }) {
             value: typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value),
         };
         if (typeof partition !== 'undefined') record.partition = partition;
+        if (typeof headers !== 'undefined') record.headers = headers;
+        if (typeof timestamp !== 'undefined') record.timestamp = String(timestamp);
         return record;
     });
 }
 
 /**
  * Builds a producer configuration from environment variables.
- * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_TOPIC, MESSAGE, KEY, MESSAGE_COUNT, and PARTITION.
- * @returns {{brokers: string|string[], clientId: string, topic: string, message: string, key: (string|undefined), messageCount: number, partition: (number|undefined)}}
+ * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_TOPIC, MESSAGE, KEY, MESSAGE_COUNT, PARTITION,
+ * MESSAGE_HEADERS, and MESSAGE_TIMESTAMP.
+ * @returns {{brokers: string|string[], clientId: string, topic: string, message: string, key: (string|undefined), messageCount: number, partition: (number|undefined), headers: (Record<string, string|string[]>|undefined), timestamp: (string|undefined)}}
  */
 export function configFromEnv() {
     return {
@@ -114,6 +121,8 @@ export function configFromEnv() {
         key: process.env.KEY,
         messageCount: process.env.MESSAGE_COUNT ? Number(process.env.MESSAGE_COUNT) : 1,
         partition: process.env.PARTITION ? Number(process.env.PARTITION) : undefined,
+        headers: process.env.MESSAGE_HEADERS ? JSON.parse(process.env.MESSAGE_HEADERS) : undefined,
+        timestamp: process.env.MESSAGE_TIMESTAMP,
     };
 }
 
