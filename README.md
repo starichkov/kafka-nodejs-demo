@@ -15,7 +15,7 @@ These are the versions this sample app is coming with:
 - Node.js (v22, v24, or v26; v26 is the primary development and runtime version)
 - npm or pnpm
 - Docker and Docker Compose (optional)
-- Apache Kafka 3.9.2 or 4.1.2 (tested and supported; 3.9.2 is the primary version)
+- Apache Kafka 3.9.2 or 4.3.2 (tested and supported; 3.9.2 is the primary version)
 
 Stable work on versions lower than v22 is not guaranteed. CI verifies compatibility with Node.js v22, v24, and v26.
 
@@ -107,6 +107,16 @@ npm run test:coverage
 ```
 
 The coverage report will be generated in the `coverage/` directory.
+
+### Run the Docker Compose smoke test
+
+To validate the complete demo flow locally, including Kafka startup, topic creation, producer delivery, and consumer receipt:
+
+```shell
+npm run test:docker
+```
+
+The script builds the application images, starts the Compose stack, waits for the expected message, prints the container status, and cleans up containers and volumes automatically. Docker and Docker Compose are required.
 
 ## 🧾 About TemplateTasks
 

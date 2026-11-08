@@ -15,9 +15,9 @@ jobs:
       matrix:
         # See the supported Node.js release schedule at https://nodejs.org/en/about/releases
         node-version: [ 22.x, 24.x, 26.x ]
-        kafka-image: [ "confluentinc/cp-kafka:7.9.6", "confluentinc/cp-kafka:8.1.2" ]
+        kafka-image: [ "confluentinc/cp-kafka:7.9.6", "confluentinc/cp-kafka:8.3.2" ]
         # confluentinc/cp-kafka:7.9.6 is Kafka 3.9.2
-        # confluentinc/cp-kafka:8.1.2 is Kafka 4.1.2
+        # confluentinc/cp-kafka:8.3.2 is Kafka 4.3.2
         # https://docs.confluent.io/platform/current/installation/versions-interoperability.html
 
     steps:

@@ -55,6 +55,7 @@ services:
       KAFKA_CLIENT_ID: "kafka-nodejs-demo"
       KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
       KAFKA_TOPIC: "kafka-nodejs-demo-topic"
+      MESSAGE: "${MESSAGE:-hello from producer}"
       FROM_BEGINNING: "true"
     restart: on-failure
 

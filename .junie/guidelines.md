@@ -21,6 +21,8 @@ Last updated: 2026-01-12 21:26 (local)
 /
 ├─ README.md                 # User-facing quickstart and usage
 ├─ docker-compose.yml        # Single-broker Kafka + demo services
+├─ test-docker-compose.sh    # Docker Compose smoke test
+├─ AGENTS.md                 # Contributor and agent checks
 ├─ consumer.Dockerfile       # Docker image for consumer
 ├─ producer.Dockerfile       # Docker image for producer
 ├─ documentation/
@@ -90,6 +92,7 @@ npm run start:producer
 - `npm run start:consumer` → `node src/consumer.js`
 - `npm test`              → Jest in-band with open handle detection
 - `npm run test:coverage` → Jest with coverage reports (lcov, text, summary)
+- `npm run test:docker`    → builds and smoke-tests the complete Docker Compose flow
 
 ## Configuration — Environment Variables
 Common:
@@ -141,7 +144,7 @@ npm run test:coverage
 ## CI
 - GitHub Actions workflow: `.github/workflows/node.js.yml`
   - Matrix on Node 22, 24, and 26 (v26 is primary)
-  - Matrix on `KAFKA_IMAGE` (Kafka 3.9.2 / 4.1.2)
+  - Matrix on `KAFKA_IMAGE` (Kafka 3.9.2 / 4.3.2)
   - Coverage and Codecov upload on Node 26 with `cp-kafka:7.9.6` (Kafka 3.9.2)
 
 ## Docker Images
