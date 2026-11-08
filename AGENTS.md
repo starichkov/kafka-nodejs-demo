@@ -30,7 +30,7 @@ The Docker check builds both application images and exercises the complete Compo
 - Keep the producer, consumer, Compose services, topic name, and environment defaults synchronized.
 - Run `npm run test:docker` after changes affecting source files, Dockerfiles, or `docker-compose.yml`.
 - The Docker smoke test requires Docker and Docker Compose and cleans up its project and volumes automatically.
-- Preserve compatibility with Node.js 22, 24, and 26 and Kafka 3.9.2 and 4.3.2 as documented in `README.md` and `.github/workflows/node.js.yml`.
+- Preserve compatibility with Node.js 22, 24, and 26 and Kafka 4.3.2 (primary) and 3.9.2 (also supported) as documented in `README.md` and `.github/workflows/node.js.yml`.
 
 ## CI failure prevention
 

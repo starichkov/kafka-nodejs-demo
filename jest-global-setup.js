@@ -46,7 +46,7 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
  * @returns {Promise<void>}
  */
 export default async () => {
-    const image = process.env.KAFKA_IMAGE || 'confluentinc/cp-kafka:7.9.6';
+    const image = process.env.KAFKA_IMAGE || 'confluentinc/cp-kafka:8.3.2';
     console.log(`[jest-global-setup] Starting Kafka container with image: ${image}`);
     const container = await new KafkaContainer(image)
         .withStartupTimeout(30000)

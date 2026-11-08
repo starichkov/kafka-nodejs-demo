@@ -15,9 +15,9 @@ jobs:
       matrix:
         # See the supported Node.js release schedule at https://nodejs.org/en/about/releases
         node-version: [ 22.x, 24.x, 26.x ]
-        kafka-image: [ "confluentinc/cp-kafka:7.9.6", "confluentinc/cp-kafka:8.3.2" ]
-        # confluentinc/cp-kafka:7.9.6 is Kafka 3.9.2
-        # confluentinc/cp-kafka:8.3.2 is Kafka 4.3.2
+        kafka-image: [ "confluentinc/cp-kafka:8.3.2", "confluentinc/cp-kafka:7.9.6" ]
+        # confluentinc/cp-kafka:8.3.2 is Kafka 4.3.2 (primary)
+        # confluentinc/cp-kafka:7.9.6 is Kafka 3.9.2 (also supported)
         # https://docs.confluent.io/platform/current/installation/versions-interoperability.html
 
     steps:
@@ -43,19 +43,19 @@ jobs:
         run: npm run format:check
 
       - name: Run unit tests
-        if: matrix.node-version != '26.x' || matrix.kafka-image != 'confluentinc/cp-kafka:7.9.6'
+        if: matrix.node-version != '26.x' || matrix.kafka-image != 'confluentinc/cp-kafka:8.3.2'
         env:
           KAFKA_IMAGE: ${{ matrix.kafka-image }}
         run: npm test
 
       - name: Run unit tests with coverage
-        if: matrix.node-version == '26.x' && matrix.kafka-image == 'confluentinc/cp-kafka:7.9.6'
+        if: matrix.node-version == '26.x' && matrix.kafka-image == 'confluentinc/cp-kafka:8.3.2'
         env:
           KAFKA_IMAGE: ${{ matrix.kafka-image }}
         run: npm run test:coverage
 
       - name: Upload coverage to Codecov
-        if: matrix.node-version == '26.x' && matrix.kafka-image == 'confluentinc/cp-kafka:7.9.6'
+        if: matrix.node-version == '26.x' && matrix.kafka-image == 'confluentinc/cp-kafka:8.3.2'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
