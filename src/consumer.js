@@ -60,6 +60,15 @@ export async function consumeMessages({
 
     let running = true;
 
+    /**
+     * Stops the Kafka consumer and releases its broker connection.
+     *
+     * The operation is idempotent: subsequent calls return without trying to
+     * stop or disconnect the KafkaJS consumer again. Errors are logged so a
+     * failure in one cleanup operation does not prevent the other from running.
+     *
+     * @returns {Promise<void>} Resolves after stop and disconnect cleanup has been attempted.
+     */
     const stopConsumer = async () => {
         if (!running) return;
         logger.info('Stopping consumer...');
@@ -133,6 +142,11 @@ export async function consumeMessages({
         }
     }
 
+    /**
+     * Requests graceful shutdown and waits for the consumer run loop to exit.
+     *
+     * @returns {Promise<void>} Resolves when the consumer has stopped and its run loop has settled.
+     */
     const stop = async () => {
         await stopConsumer();
         try {
@@ -188,6 +202,10 @@ export async function main(deps = { consumeMessages }) {
 /**
  * Detects whether this module is being executed directly (not imported) in Node.js.
  * Useful to guard the CLI entrypoint for ESM modules.
+ *
+ * Several path and URL comparisons are attempted because `process.argv[1]` can
+ * be represented differently by Node.js and by test runners.
+ *
  * @returns {boolean} True if run via `node src/consumer.js`, false if imported.
  */
 function computeDirectRun() {
@@ -239,6 +257,11 @@ function computeDirectRun() {
 
 const __DIRECT_RUN__ = computeDirectRun();
 
+/**
+ * Reports whether the consumer module was started as a CLI script.
+ *
+ * @returns {boolean} True when this file is the direct Node.js entrypoint.
+ */
 export const isDirectRun = () => __DIRECT_RUN__;
 
 if (isDirectRun()) {

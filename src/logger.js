@@ -64,6 +64,15 @@ function format(args) {
 function makeLogger(levelName) {
     const levelNum = LEVELS[levelName];
     const useErr = levelNum >= LEVELS.error;
+    /**
+     * Writes a message when this logger level is enabled.
+     *
+     * Messages include an ISO timestamp and uppercase level name. Error and
+     * fatal messages use stderr; lower-severity messages use stdout.
+     *
+     * @param {...any} args Values to format and write as one log line.
+     * @returns {void}
+     */
     return (...args) => {
         if (levelNum < currentLevel) return;
         const ts = new Date().toISOString();
@@ -72,6 +81,13 @@ function makeLogger(levelName) {
     };
 }
 
+/**
+ * Logger methods grouped by severity, with the configured level exposed as
+ * `level`. Methods below the configured level are ignored.
+ *
+ * @type {{level: string, trace: Function, debug: Function, info: Function,
+ *         warn: Function, error: Function, fatal: Function}}
+ */
 const logger = {
     level: currentLevelName,
     trace: makeLogger('trace'),
