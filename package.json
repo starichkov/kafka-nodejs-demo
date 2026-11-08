@@ -26,10 +26,14 @@
     "kafkajs": "^2.2.4"
   },
   "devDependencies": {
-    "@jest/globals": "^30.2.0",
-    "@testcontainers/kafka": "^11.14.0",
-    "jest": "^30.4.2",
-    "testcontainers": "^11.14.0"
+    "@jest/globals": "^30.5.2",
+    "@testcontainers/kafka": "^12.2.1",
+    "jest": "^30.5.2",
+    "testcontainers": "^12.2.1"
+  },
+  "overrides": {
+    "glob": "~14.0.4",
+    "minimatch": "~11.0.5"
   },
   "jest": {
     "testEnvironment": "node",
