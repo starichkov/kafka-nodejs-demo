@@ -12,12 +12,12 @@ A minimal Apache Kafka demo using Node.js.
 
 These are the versions this sample app is coming with:
 
-- Node.js (v22 or higher)
+- Node.js (v22, v24, or v26; v26 is the primary development and runtime version)
 - npm or pnpm
 - Docker and Docker Compose (optional)
 - Apache Kafka 3.9.2 or 4.1.2 (tested and supported; 3.9.2 is the primary version)
 
-Stable work on versions lower than v22 is not guaranteed.
+Stable work on versions lower than v22 is not guaranteed. CI verifies compatibility with Node.js v22, v24, and v26.
 
 ## 🚀 How to Run
 
