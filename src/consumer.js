@@ -14,7 +14,7 @@ import pkg from 'kafkajs';
 import * as url from 'url';
 import path from 'path';
 
-const { Kafka, logLevel } = pkg;
+const { Kafka, logLevel, Partitioners } = pkg;
 
 // Re-exported from shared utils to avoid duplication across modules
 import { parseBrokers, waitForKafkaConnectivity } from './utils.js';
@@ -22,6 +22,111 @@ export { parseBrokers };
 
 // Centralized logger
 import logger from './logger.js';
+
+/**
+ * Waits before retrying an application-level message handler.
+ * @param {number} milliseconds Delay duration.
+ * @returns {Promise<void>} Resolves after the delay.
+ */
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+/**
+ * Converts Kafka header values to readable strings for logs and dead-letter metadata.
+ * @param {Record<string, unknown>} headers Kafka message headers.
+ * @returns {Record<string, string|string[]|null>} Normalized header values.
+ */
+export function normalizeHeaders(headers = {}) {
+    return Object.fromEntries(
+        Object.entries(headers).map(([name, headerValue]) => [
+            name,
+            Array.isArray(headerValue)
+                ? headerValue.map((item) => item?.toString() ?? null)
+                : (headerValue?.toString() ?? null),
+        ]),
+    );
+}
+
+/**
+ * Processes one record with optional intentional failure, bounded retries, and DLQ routing.
+ * A record is acknowledged by KafkaJS only after this function resolves. Without a DLQ,
+ * the final error is rethrown so KafkaJS can apply its normal failed-handler behavior.
+ * @param {Object} params Processing configuration.
+ * @param {import('kafkajs').EachMessagePayload} params.payload KafkaJS message payload.
+ * @param {Function} [params.eachMessage] User-provided message handler.
+ * @param {string|number} [params.failOnKey] Key that should intentionally fail.
+ * @param {string} [params.failOnValue] Value that should intentionally fail.
+ * @param {number} params.maxRetries Number of retries after the first attempt.
+ * @param {number} params.retryBackoffMs Delay between retries.
+ * @param {import('kafkajs').Producer|null} params.deadLetterProducer Connected DLQ producer.
+ * @param {string} [params.deadLetterTopic] Destination for exhausted records.
+ * @param {string} params.groupId Consumer group identifier for logging.
+ * @returns {Promise<void>} Resolves when handled or routed to the DLQ.
+ */
+export async function processMessage({
+    payload,
+    eachMessage,
+    failOnKey,
+    failOnValue,
+    maxRetries,
+    retryBackoffMs,
+    deadLetterProducer,
+    deadLetterTopic,
+    groupId,
+}) {
+    const { topic, partition, message } = payload;
+    const key = message.key?.toString() ?? null;
+    const value = message.value?.toString() ?? null;
+    const shouldFail =
+        (typeof failOnKey !== 'undefined' && key === String(failOnKey)) ||
+        (typeof failOnValue !== 'undefined' && value === String(failOnValue));
+    let attempt = 0;
+
+    while (true) {
+        try {
+            if (shouldFail) {
+                throw new Error(
+                    `Intentional failure for topic=${topic} partition=${partition} offset=${message.offset}`,
+                );
+            }
+            if (typeof eachMessage === 'function') {
+                await eachMessage(payload);
+            } else {
+                logger.info(
+                    `Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${message.timestamp ?? null} headers=${JSON.stringify(normalizeHeaders(message.headers))} key=${key} value=${value}`,
+                );
+            }
+            return;
+        } catch (error) {
+            if (attempt < maxRetries) {
+                attempt++;
+                logger.warn(
+                    `Message processing failed; retrying attempt=${attempt}/${maxRetries} topic=${topic} partition=${partition} offset=${message.offset}: ${error.message}`,
+                );
+                await delay(retryBackoffMs);
+                continue;
+            }
+
+            if (!deadLetterProducer || !deadLetterTopic) throw error;
+
+            const headers = {
+                ...message.headers,
+                'original-topic': topic,
+                'original-partition': String(partition),
+                'original-offset': String(message.offset),
+                'retry-count': String(attempt),
+                error: error.message,
+            };
+            await deadLetterProducer.send({
+                topic: deadLetterTopic,
+                messages: [{ key: message.key, value: message.value, headers }],
+            });
+            logger.error(
+                `Message routed to dead-letter topic=${deadLetterTopic} originalTopic=${topic} partition=${partition} offset=${message.offset} retries=${attempt} error=${error.message}`,
+            );
+            return;
+        }
+    }
+}
 
 /**
  * Starts a Kafka consumer and begins streaming messages from a topic.
@@ -36,6 +141,11 @@ import logger from './logger.js';
  * @param {boolean} [params.fromBeginning=true] When true, read from the beginning of the topic.
  * @param {(payload: import('kafkajs').EachMessagePayload) => (Promise<void>|void)} [params.eachMessage]
  *        Optional handler for each message. If omitted, messages are logged to stdout.
+ * @param {string|number} [params.failOnKey] Intentionally fail records with this key.
+ * @param {string} [params.failOnValue] Intentionally fail records with this value.
+ * @param {number} [params.maxRetries=0] Number of application-level retries after the first attempt.
+ * @param {number} [params.retryBackoffMs=100] Delay between application-level retries.
+ * @param {string} [params.deadLetterTopic] Topic for records that still fail after retries.
  * @param {AbortSignal} [params.signal] Optional AbortSignal to stop and disconnect the consumer.
  * @throws {Error} If brokers or topic are not provided.
  * @returns {Promise<{stop: () => Promise<void>, runPromise: Promise<void>}>
@@ -49,14 +159,28 @@ export async function consumeMessages({
     fromBeginning = true,
     eachMessage,
     signal,
+    failOnKey,
+    failOnValue,
+    maxRetries = 0,
+    retryBackoffMs = 100,
+    deadLetterTopic,
 }) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
     }
     if (!topic) throw new Error('topic is required');
+    if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+        throw new Error('maxRetries must be a non-negative integer');
+    }
+    if (!Number.isInteger(retryBackoffMs) || retryBackoffMs < 0) {
+        throw new Error('retryBackoffMs must be a non-negative integer');
+    }
 
     const kafka = new Kafka({ clientId, brokers: parseBrokers(brokers), logLevel: logLevel.INFO });
     const consumer = kafka.consumer({ groupId });
+    const deadLetterProducer = deadLetterTopic
+        ? kafka.producer({ createPartitioner: Partitioners?.DefaultPartitioner })
+        : null;
 
     let running = true;
 
@@ -85,6 +209,14 @@ export async function consumeMessages({
         } catch (err) {
             logger.error('Error disconnecting consumer:', err);
         }
+        if (deadLetterProducer) {
+            try {
+                await deadLetterProducer.disconnect();
+                logger.info('Dead-letter producer disconnected');
+            } catch (err) {
+                logger.error('Error disconnecting dead-letter producer:', err);
+            }
+        }
     };
 
     if (signal) {
@@ -107,43 +239,40 @@ export async function consumeMessages({
     logger.info('Checking Kafka readiness (admin metadata)...');
     await waitForKafkaConnectivity(kafka);
 
+    if (deadLetterProducer) {
+        logger.info(`Connecting dead-letter producer for topic: ${deadLetterTopic}`);
+        await deadLetterProducer.connect();
+    }
+
     logger.info('Starting consumer run loop with retry logic...');
     let retries = 0;
-    const maxRetries = 3;
+    const maxStartupRetries = 3;
     let runPromise;
 
-    while (retries < maxRetries && running) {
+    while (retries < maxStartupRetries && running) {
         try {
             runPromise = consumer.run({
                 eachMessage: async (payload) => {
                     if (!running) return;
-                    if (typeof eachMessage === 'function') {
-                        await eachMessage(payload);
-                    } else {
-                        const { topic, partition, message } = payload;
-                        const key = message.key ? message.key.toString() : null;
-                        const value = message.value ? message.value.toString() : null;
-                        const timestamp = message.timestamp ?? null;
-                        const headers = Object.fromEntries(
-                            Object.entries(message.headers ?? {}).map(([name, headerValue]) => [
-                                name,
-                                Array.isArray(headerValue)
-                                    ? headerValue.map((item) => item?.toString() ?? null)
-                                    : (headerValue?.toString() ?? null),
-                            ]),
-                        );
-                        logger.info(
-                            `Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} headers=${JSON.stringify(headers)} key=${key} value=${value}`,
-                        );
-                    }
+                    await processMessage({
+                        payload,
+                        eachMessage,
+                        failOnKey,
+                        failOnValue,
+                        maxRetries,
+                        retryBackoffMs,
+                        deadLetterProducer,
+                        deadLetterTopic,
+                        groupId,
+                    });
                 },
             });
             logger.info('Consumer run loop started successfully');
             break; // Success, exit retry loop
         } catch (error) {
             retries++;
-            logger.warn(`Consumer start failed (attempt ${retries}/${maxRetries}):`, error.message);
-            if (retries < maxRetries) {
+            logger.warn(`Consumer start failed (attempt ${retries}/${maxStartupRetries}):`, error.message);
+            if (retries < maxStartupRetries) {
                 logger.info('Retrying after readiness check...');
                 await waitForKafkaConnectivity(kafka, 5000);
             } else {
@@ -172,8 +301,9 @@ export async function consumeMessages({
 
 /**
  * Builds a consumer configuration from environment variables.
- * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_GROUP_ID, KAFKA_TOPIC, FROM_BEGINNING.
- * @returns {{brokers: string|string[], clientId: string, groupId: string, topic: string, fromBeginning: boolean}}
+ * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_GROUP_ID, KAFKA_TOPIC, FROM_BEGINNING,
+ * FAIL_ON_KEY, FAIL_ON_VALUE, MAX_RETRIES, RETRY_BACKOFF_MS, and DEAD_LETTER_TOPIC.
+ * @returns {{brokers: string|string[], clientId: string, groupId: string, topic: string, fromBeginning: boolean, failOnKey: (string|undefined), failOnValue: (string|undefined), maxRetries: number, retryBackoffMs: number, deadLetterTopic: (string|undefined)}}
  */
 export function configFromEnv() {
     return {
@@ -182,6 +312,11 @@ export function configFromEnv() {
         groupId: process.env.KAFKA_GROUP_ID || 'kafka-nodejs-demo-group',
         topic: process.env.KAFKA_TOPIC || 'demo-topic',
         fromBeginning: process.env.FROM_BEGINNING ? process.env.FROM_BEGINNING === 'true' : true,
+        failOnKey: process.env.FAIL_ON_KEY,
+        failOnValue: process.env.FAIL_ON_VALUE,
+        maxRetries: process.env.MAX_RETRIES ? Number(process.env.MAX_RETRIES) : 0,
+        retryBackoffMs: process.env.RETRY_BACKOFF_MS ? Number(process.env.RETRY_BACKOFF_MS) : 100,
+        deadLetterTopic: process.env.DEAD_LETTER_TOPIC,
     };
 }
 

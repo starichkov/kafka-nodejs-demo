@@ -116,6 +116,66 @@ describe('consumer with real Kafka (Testcontainers)', () => {
                 .sort(),
         ).toEqual([0, 1, 2]);
     }, 30_000);
+
+    test('retries a failing record and routes it to a dead-letter topic', async () => {
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('failures');
+        const deadLetterTopic = uniqueId('dead-letter');
+        const kafka = kafkaClient();
+        await ensureTopic(kafka, topic);
+        await ensureTopic(kafka, deadLetterTopic);
+
+        let deadLetterMessage;
+        const deadLetterConsumer = await consumeMessages({
+            brokers,
+            topic: deadLetterTopic,
+            groupId: uniqueId('dlq-group'),
+            clientId: 'dlq-consumer',
+            fromBeginning: true,
+            eachMessage: async ({ message }) => {
+                deadLetterMessage = {
+                    key: message.key?.toString(),
+                    value: message.value?.toString(),
+                    headers: Object.fromEntries(
+                        Object.entries(message.headers).map(([name, value]) => [name, value?.toString()]),
+                    ),
+                };
+            },
+        });
+        const sourceConsumer = await consumeMessages({
+            brokers,
+            topic,
+            groupId: uniqueId('source-group'),
+            clientId: 'source-consumer',
+            fromBeginning: true,
+            failOnValue: 'permanent-failure',
+            maxRetries: 2,
+            retryBackoffMs: 10,
+            deadLetterTopic,
+        });
+
+        await produce(topic, { key: 'failed-key', value: 'permanent-failure' });
+
+        const deadline = Date.now() + 15_000;
+        while (!deadLetterMessage && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 25));
+
+        await sourceConsumer.stop();
+        await deadLetterConsumer.stop();
+        await Promise.all([sourceConsumer.runPromise, deadLetterConsumer.runPromise]);
+
+        expect(deadLetterMessage).toEqual({
+            key: 'failed-key',
+            value: 'permanent-failure',
+            headers: expect.objectContaining({
+                'original-topic': topic,
+                'original-partition': '0',
+                'original-offset': '0',
+                'retry-count': '2',
+                error: expect.stringContaining('Intentional failure'),
+            }),
+        });
+    }, 30_000);
 });
 
 describe('consumeMessages error handling', () => {

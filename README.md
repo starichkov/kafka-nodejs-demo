@@ -98,6 +98,8 @@ Then continue with [Lesson 3: Partitions, keys, ordering, and parallel consumers
 
 Then continue with [Lesson 4: Headers, timestamps, and record inspection](documentation/lesson-04-headers-timestamps-and-inspection.md) to attach metadata to records and inspect each partition's beginning and end offsets.
 
+Finally, try [Lesson 5: Failures, retries, and dead-letter topics](documentation/lesson-05-failures-retries-and-dead-letters.md) to compare Kafka redelivery with bounded application retries and explicit dead-letter routing.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
@@ -112,6 +114,11 @@ Then continue with [Lesson 4: Headers, timestamps, and record inspection](docume
 - `PARTITION`: optional non-negative partition number for every produced record (producer only; default: broker partition selection)
 - `MESSAGE_HEADERS`: optional JSON object of Kafka record headers (producer only; default: unset)
 - `MESSAGE_TIMESTAMP`: optional record timestamp in milliseconds (producer only; default: broker timestamp)
+- `FAIL_ON_KEY`: intentionally fail records with this key (consumer only; default: unset)
+- `FAIL_ON_VALUE`: intentionally fail records with this value (consumer only; default: unset)
+- `MAX_RETRIES`: application-level retries after the first attempt (consumer only; default: `0`)
+- `RETRY_BACKOFF_MS`: delay between application-level retries in milliseconds (consumer only; default: `100`)
+- `DEAD_LETTER_TOPIC`: publish exhausted records here instead of rethrowing (consumer only; default: unset)
 - `LOG_LEVEL`: logger level, one of `trace|debug|info|warn|error|fatal` (default: `info`)
 
 To send a deterministic batch, keep the consumer running and use the same key for all records:

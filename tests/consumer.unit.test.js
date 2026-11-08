@@ -179,6 +179,90 @@ describe('consumeMessages default record logging (unit)', () => {
     });
 });
 
+describe('processMessage retry and dead-letter behavior (unit)', () => {
+    test('retries a transient handler failure and then succeeds', async () => {
+        const { processMessage } = await importConsumerWithMocks();
+        let attempts = 0;
+
+        await processMessage({
+            payload: {
+                topic: 'source',
+                partition: 1,
+                message: { offset: '7', key: Buffer.from('k'), value: Buffer.from('v') },
+            },
+            eachMessage: async () => {
+                attempts++;
+                if (attempts < 3) throw new Error('temporary failure');
+            },
+            maxRetries: 2,
+            retryBackoffMs: 0,
+            groupId: 'group',
+        });
+
+        expect(attempts).toBe(3);
+    });
+
+    test('publishes exhausted failures with original record metadata', async () => {
+        const { processMessage } = await importConsumerWithMocks();
+        const send = jest.fn().mockResolvedValue(undefined);
+
+        await processMessage({
+            payload: {
+                topic: 'source',
+                partition: 2,
+                message: {
+                    offset: '9',
+                    key: Buffer.from('bad'),
+                    value: Buffer.from('payload'),
+                    headers: { trace: Buffer.from('abc') },
+                },
+            },
+            failOnKey: 'bad',
+            maxRetries: 2,
+            retryBackoffMs: 0,
+            deadLetterProducer: { send },
+            deadLetterTopic: 'source.dlq',
+            groupId: 'group',
+        });
+
+        expect(send).toHaveBeenCalledWith({
+            topic: 'source.dlq',
+            messages: [
+                expect.objectContaining({
+                    key: Buffer.from('bad'),
+                    value: Buffer.from('payload'),
+                    headers: expect.objectContaining({
+                        trace: Buffer.from('abc'),
+                        'original-topic': 'source',
+                        'original-partition': '2',
+                        'original-offset': '9',
+                        'retry-count': '2',
+                        error: expect.stringContaining('Intentional failure'),
+                    }),
+                }),
+            ],
+        });
+    });
+
+    test('rethrows the final failure when no dead-letter topic is configured', async () => {
+        const { processMessage } = await importConsumerWithMocks();
+
+        await expect(
+            processMessage({
+                payload: {
+                    topic: 'source',
+                    partition: 0,
+                    message: { offset: '1', key: null, value: Buffer.from('bad') },
+                },
+                failOnValue: 'bad',
+                maxRetries: 1,
+                retryBackoffMs: 0,
+                groupId: 'group',
+            }),
+        ).rejects.toThrow('Intentional failure');
+    });
+});
+
 describe('isDirectRun edge cases', () => {
     test('isDirectRun returns false when pathToFileURL throws (catch branch)', async () => {
         const { isDirectRun } = await importConsumerWithMocks({

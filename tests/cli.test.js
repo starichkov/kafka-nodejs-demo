@@ -77,6 +77,11 @@ describe('configFromEnv (consumer)', () => {
         delete process.env.KAFKA_GROUP_ID;
         delete process.env.KAFKA_TOPIC;
         delete process.env.FROM_BEGINNING;
+        delete process.env.FAIL_ON_KEY;
+        delete process.env.FAIL_ON_VALUE;
+        delete process.env.MAX_RETRIES;
+        delete process.env.RETRY_BACKOFF_MS;
+        delete process.env.DEAD_LETTER_TOPIC;
 
         const cfg = consumer.configFromEnv();
         expect(cfg).toEqual({
@@ -85,6 +90,11 @@ describe('configFromEnv (consumer)', () => {
             groupId: 'kafka-nodejs-demo-group',
             topic: 'demo-topic',
             fromBeginning: true,
+            failOnKey: undefined,
+            failOnValue: undefined,
+            maxRetries: 0,
+            retryBackoffMs: 100,
+            deadLetterTopic: undefined,
         });
     });
 
@@ -94,6 +104,11 @@ describe('configFromEnv (consumer)', () => {
         process.env.KAFKA_GROUP_ID = 'gid2';
         process.env.KAFKA_TOPIC = 't2';
         process.env.FROM_BEGINNING = 'false';
+        process.env.FAIL_ON_KEY = 'bad-key';
+        process.env.FAIL_ON_VALUE = 'bad-value';
+        process.env.MAX_RETRIES = '2';
+        process.env.RETRY_BACKOFF_MS = '250';
+        process.env.DEAD_LETTER_TOPIC = 'demo-dlq';
 
         const cfg = consumer.configFromEnv();
         expect(cfg).toEqual({
@@ -102,6 +117,11 @@ describe('configFromEnv (consumer)', () => {
             groupId: 'gid2',
             topic: 't2',
             fromBeginning: false,
+            failOnKey: 'bad-key',
+            failOnValue: 'bad-value',
+            maxRetries: 2,
+            retryBackoffMs: 250,
+            deadLetterTopic: 'demo-dlq',
         });
     });
 });
