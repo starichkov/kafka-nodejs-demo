@@ -103,7 +103,17 @@ Then continue with [Lesson 2: Consumer groups, offsets, and replay](documentatio
 - `FROM_BEGINNING`: read from beginning (consumer only; default: `true`)
 - `MESSAGE`: message value to send (producer only; default: `"hello from producer"`)
 - `KEY`: optional message key (producer only; default: unset)
+- `MESSAGE_COUNT`: number of records to send (producer only; default: `1`; values become `MESSAGE-1`, `MESSAGE-2`, ... when greater than one)
+- `PARTITION`: optional non-negative partition number for every produced record (producer only; default: broker partition selection)
 - `LOG_LEVEL`: logger level, one of `trace|debug|info|warn|error|fatal` (default: `info`)
+
+To send a deterministic batch, keep the consumer running and use the same key for all records:
+
+```shell
+MESSAGE="lesson-03" KEY=sequence MESSAGE_COUNT=3 npm run start:producer
+```
+
+The producer logs one topic/partition/offset line per record. A shared key normally sends the batch to one partition, making the `-1`, `-2`, `-3` ordering easy to observe.
 
 ## 🧪 Testing
 

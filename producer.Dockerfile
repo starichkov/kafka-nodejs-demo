@@ -12,6 +12,7 @@ ENV NODE_ENV=production
 ENV KAFKA_BROKERS=localhost:9092 \
     KAFKA_CLIENT_ID=kafka-nodejs-demo \
     KAFKA_TOPIC=demo-topic \
-    MESSAGE="hello from producer"
+    MESSAGE="hello from producer" \
+    MESSAGE_COUNT=1
 
 CMD ["node", "src/producer.js"]

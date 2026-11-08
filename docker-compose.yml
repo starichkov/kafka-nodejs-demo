@@ -56,6 +56,8 @@ services:
       KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
       KAFKA_TOPIC: "demo-topic"
       MESSAGE: "${MESSAGE:-hello from producer}"
+      MESSAGE_COUNT: "${MESSAGE_COUNT:-1}"
+      PARTITION: "${PARTITION:-}"
       FROM_BEGINNING: "true"
     restart: on-failure
 

@@ -24,6 +24,8 @@ describe('configFromEnv (producer)', () => {
         delete process.env.KAFKA_TOPIC;
         delete process.env.MESSAGE;
         delete process.env.KEY;
+        delete process.env.MESSAGE_COUNT;
+        delete process.env.PARTITION;
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -32,6 +34,8 @@ describe('configFromEnv (producer)', () => {
             topic: 'demo-topic',
             message: 'hello from producer',
             key: undefined,
+            messageCount: 1,
+            partition: undefined,
         });
     });
 
@@ -41,6 +45,8 @@ describe('configFromEnv (producer)', () => {
         process.env.KAFKA_TOPIC = 't1';
         process.env.MESSAGE = 'm1';
         process.env.KEY = 'kk';
+        process.env.MESSAGE_COUNT = '3';
+        process.env.PARTITION = '1';
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -49,6 +55,8 @@ describe('configFromEnv (producer)', () => {
             topic: 't1',
             message: 'm1',
             key: 'kk',
+            messageCount: 3,
+            partition: 1,
         });
     });
 });

@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
 import { kafkaClient, uniqueId, ensureTopic } from './kafka-helpers.js';
-import { produceMessage } from '../src/producer.js';
+import { buildMessages, produceMessage } from '../src/producer.js';
 
 async function consumeOne(kafka, topic) {
     const groupId = uniqueId('g');
@@ -52,6 +52,48 @@ describe('producer with real Kafka (Testcontainers)', () => {
 
         const msg = await consumeOne(kafka, topic);
         expect(msg).toEqual({ key: null, value: JSON.stringify({ a: 1 }) });
+    });
+
+    test('produceMessage sends a deterministic batch with the same key', async () => {
+        const topic = uniqueId();
+        await ensureTopic(kafka, topic);
+        const metadata = await produceMessage({ brokers, topic, key: 'sequence', message: 'item', messageCount: 3 });
+
+        expect(metadata).toHaveLength(3);
+        expect(metadata).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ topicName: topic, partition: 0 }),
+                expect.objectContaining({ topicName: topic, partition: 0 }),
+                expect.objectContaining({ topicName: topic, partition: 0 }),
+            ]),
+        );
+
+        const groupId = uniqueId('g');
+        const consumer = kafka.consumer({ groupId });
+        const messages = [];
+        await consumer.connect();
+        await consumer.subscribe({ topic, fromBeginning: true });
+        await new Promise((resolve, reject) => {
+            consumer
+                .run({
+                    eachMessage: async ({ message }) => {
+                        messages.push({
+                            key: message.key?.toString() ?? null,
+                            value: message.value?.toString() ?? null,
+                        });
+                        if (messages.length === 3) resolve();
+                    },
+                })
+                .catch(reject);
+        });
+        await consumer.stop();
+        await consumer.disconnect();
+
+        expect(messages).toEqual([
+            { key: 'sequence', value: 'item-1' },
+            { key: 'sequence', value: 'item-2' },
+            { key: 'sequence', value: 'item-3' },
+        ]);
     });
 });
 
@@ -117,6 +159,28 @@ describe('produceMessage error handling', () => {
 });
 
 describe('produceMessage message formatting', () => {
+    test('buildMessages preserves the single-message shape', () => {
+        expect(buildMessages({ message: 'hello' })).toEqual([{ key: null, value: 'hello' }]);
+    });
+
+    test('buildMessages adds deterministic suffixes and partition', () => {
+        expect(buildMessages({ message: 'hello', key: 7, messageCount: 2, partition: 1 })).toEqual([
+            { key: '7', value: 'hello-1', partition: 1 },
+            { key: '7', value: 'hello-2', partition: 1 },
+        ]);
+    });
+
+    test('buildMessages rejects an invalid count', () => {
+        expect(() => buildMessages({ message: 'hello', messageCount: 0 })).toThrow(
+            'messageCount must be a positive integer',
+        );
+    });
+
+    test('buildMessages keeps Buffer payloads intact for a single record', () => {
+        const value = Buffer.from('hello');
+        const [record] = buildMessages({ message: value });
+        expect(record.value).toBe(value);
+    });
     test('handles Buffer message without Kafka connection', () => {
         // Test the message formatting logic without actual Kafka calls
         const buffer = Buffer.from('test buffer');
