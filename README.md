@@ -12,15 +12,15 @@ A minimal Apache Kafka demo using Node.js.
 
 The compatibility targets for this sample are summarized below. CI tests every combination of the listed Node.js and Kafka distributions.
 
-| Component | Supported/tested versions | Where it is used |
-| --- | --- | --- |
-| Node.js | 22, 24, and 26; 26 is the primary development version | Local commands, application images, and CI |
-| Kafka | 4.3.2 (primary); 3.9.2 (also supported) | Testcontainers and CI compatibility matrix |
-| KafkaJS | `^2.2.4` | Node.js producer and consumer dependency |
-| Compose Kafka image | `apache/kafka:4.3.2` | Default local Docker Compose flow |
-| CI Kafka images | `confluentinc/cp-kafka:8.3.2` (Kafka 4.3.2, primary) and `confluentinc/cp-kafka:7.9.6` (Kafka 3.9.2, also supported) | GitHub Actions integration tests |
-| Package manager | npm with `npm ci`; pnpm may also be used locally | Dependency installation |
-| Docker Compose | Docker and Compose compatible with the commands below | Optional local broker and smoke test |
+| Component           | Supported/tested versions                                                                                            | Where it is used                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Node.js             | 22, 24, and 26; 26 is the primary development version                                                                | Local commands, application images, and CI |
+| Kafka               | 4.3.2 (primary); 3.9.2 (also supported)                                                                              | Testcontainers and CI compatibility matrix |
+| KafkaJS             | `^2.2.4`                                                                                                             | Node.js producer and consumer dependency   |
+| Compose Kafka image | `apache/kafka:4.3.2`                                                                                                 | Default local Docker Compose flow          |
+| CI Kafka images     | `confluentinc/cp-kafka:8.3.2` (Kafka 4.3.2, primary) and `confluentinc/cp-kafka:7.9.6` (Kafka 3.9.2, also supported) | GitHub Actions integration tests           |
+| Package manager     | npm with `npm ci`; pnpm may also be used locally                                                                     | Dependency installation                    |
+| Docker Compose      | Docker and Compose compatible with the commands below                                                                | Optional local broker and smoke test       |
 
 Stable work on versions lower than v22 is not guaranteed. CI verifies compatibility with Node.js v22, v24, and v26.
 
@@ -43,6 +43,7 @@ docker compose logs -f consumer producer
 ```
 
 This will:
+
 - Start a Kafka broker (exposed on localhost:9092)
 - Create the topic `demo-topic`
 - Build and run the demo producer (sends one message) and consumer (prints messages)
@@ -83,6 +84,7 @@ npm run start:producer
 ```
 
 4. Stop:
+
 - Press Ctrl+C in the consumer terminal
 - Stop Kafka and remove the disposable broker data: `docker compose down -v`
 
@@ -141,6 +143,8 @@ Inspect the retained offset range for the configured topic with `npm run inspect
 The project uses Jest for unit and integration testing. Integration tests use [Testcontainers](https://testcontainers.com/) to spin up a real Kafka instance.
 
 See [the architecture overview](documentation/architecture.md) for the producer, broker, topic, consumer-group, and dead-letter paths. See [the test story](documentation/testing.md) for what each suite teaches, which behavior it protects, and how to interpret failures.
+
+See the [Kafka glossary](documentation/glossary.md) for the terms used in the lessons, with links to the corresponding source code and Compose settings.
 
 ### Run tests locally
 

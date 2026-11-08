@@ -62,6 +62,7 @@ Using `localhost:9092` inside a container would point back to that container, no
 
 ## Related code and lessons
 
+- The [Kafka glossary](glossary.md) defines the terms in this diagram and links them to the implementation.
 - The broker listeners and topic setup are defined in `docker-compose.yml`.
 - The producer path is implemented in `src/producer.js`; the consumer path is implemented in `src/consumer.js`.
 - Topic offset inspection is implemented in `src/topic-admin.js`.
