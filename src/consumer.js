@@ -183,6 +183,7 @@ export async function consumeMessages({
         : null;
 
     let running = true;
+    let runPromise;
 
     /**
      * Stops the Kafka consumer and releases its broker connection.
@@ -202,6 +203,13 @@ export async function consumeMessages({
             logger.info('Consumer stopped');
         } catch (err) {
             logger.error('Error stopping consumer:', err);
+        }
+        if (runPromise) {
+            try {
+                await runPromise;
+            } catch (_) {
+                // The run loop can reject while KafkaJS is shutting down.
+            }
         }
         try {
             await consumer.disconnect();
@@ -247,8 +255,6 @@ export async function consumeMessages({
     logger.info('Starting consumer run loop with retry logic...');
     let retries = 0;
     const maxStartupRetries = 3;
-    let runPromise;
-
     while (retries < maxStartupRetries && running) {
         try {
             runPromise = consumer.run({

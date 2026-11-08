@@ -105,8 +105,10 @@ describe('consumer with real Kafka (Testcontainers)', () => {
             check();
         });
 
-        await Promise.all(consumers.map(({ stop }) => stop()));
-        await Promise.all(consumers.map(({ runPromise }) => runPromise));
+        for (const consumer of consumers) {
+            await consumer.stop();
+            await consumer.runPromise;
+        }
 
         expect(received.filter((messages) => messages.length > 0)).toHaveLength(2);
         expect(

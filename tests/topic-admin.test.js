@@ -1,7 +1,13 @@
-import { describe, test, expect } from '@jest/globals';
-import { inspectTopic } from '../src/topic-admin.js';
+import { describe, test, expect, afterEach } from '@jest/globals';
+import { inspectTopic, isDirectRun } from '../src/topic-admin.js';
 import { kafkaClient, uniqueId, ensureTopic } from './kafka-helpers.js';
 import { produceMessage } from '../src/producer.js';
+
+const ORIGINAL_ARGV1 = process.argv[1];
+
+afterEach(() => {
+    process.argv[1] = ORIGINAL_ARGV1;
+});
 
 describe('topic inspection with real Kafka (Testcontainers)', () => {
     test('returns beginning and end offsets for each partition', async () => {
@@ -22,6 +28,14 @@ describe('topic inspection with real Kafka (Testcontainers)', () => {
                 expect.objectContaining({ partition: 1, low: '0', high: '0' }),
             ]),
         );
+    });
+});
+
+describe('topic-admin direct-run detection', () => {
+    test('returns false when argv does not contain a valid path', () => {
+        process.argv[1] = undefined;
+
+        expect(isDirectRun()).toBe(false);
     });
 });
 

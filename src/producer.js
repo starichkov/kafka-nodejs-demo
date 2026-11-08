@@ -36,6 +36,9 @@ import logger from './logger.js';
  * @param {number} [params.partition] Optional partition to which every record is sent.
  * @param {Record<string, string|string[]|Buffer|Buffer[]>} [params.headers] Optional record headers.
  * @param {string|number} [params.timestamp] Optional Kafka record timestamp in milliseconds.
+ * @param {-1|0|1} [params.acks=-1] Broker acknowledgment level for each send.
+ * @param {number} [params.retries=5] KafkaJS network/protocol retry limit.
+ * @param {boolean} [params.idempotent=false] Enable Kafka producer idempotence.
  * @throws {Error} If brokers, topic, or message are not provided.
  * @returns {Promise<import('kafkajs').RecordMetadata[]>} Kafka metadata for the sent record(s).
  */
@@ -49,6 +52,9 @@ export async function produceMessage({
     partition,
     headers,
     timestamp,
+    acks = -1,
+    retries = 5,
+    idempotent = false,
 }) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
@@ -61,9 +67,10 @@ export async function produceMessage({
     if (typeof partition !== 'undefined' && (!Number.isInteger(partition) || partition < 0)) {
         throw new Error('partition must be a non-negative integer');
     }
+    validateReliabilityOptions({ acks, retries, idempotent });
 
     const kafka = new Kafka({ clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING });
-    const producer = kafka.producer({ createPartitioner: Partitioners.DefaultPartitioner });
+    const producer = kafka.producer(buildProducerOptions({ retries, idempotent }));
 
     // Perform a readiness check via Kafka admin instead of relying on timing
     logger.info('Checking Kafka readiness (producer admin metadata)...');
@@ -73,13 +80,39 @@ export async function produceMessage({
     try {
         const metadata = [];
         for (const record of buildMessages({ message, key, messageCount, partition, headers, timestamp })) {
-            const result = await producer.send({ topic, messages: [record] });
+            const result = await producer.send({ topic, messages: [record], acks });
             metadata.push(...result);
         }
         return metadata;
     } finally {
         await producer.disconnect();
     }
+}
+
+/**
+ * Builds KafkaJS producer options for the configured reliability behavior.
+ * @param {{retries?: number, idempotent?: boolean}} params Reliability settings.
+ * @returns {{createPartitioner: Function, retry: {retries: number}, idempotent: boolean}} KafkaJS producer options.
+ */
+export function buildProducerOptions({ retries = 5, idempotent = false } = {}) {
+    return {
+        createPartitioner: Partitioners.DefaultPartitioner,
+        retry: { retries },
+        idempotent,
+    };
+}
+
+/**
+ * Validates Kafka producer acknowledgment and retry settings.
+ * @param {{acks: number, retries: number, idempotent: boolean}} params Reliability settings.
+ * @throws {Error} If a setting is outside KafkaJS's supported range.
+ * @returns {void}
+ */
+export function validateReliabilityOptions({ acks, retries, idempotent }) {
+    if (![-1, 0, 1].includes(acks)) throw new Error('acks must be -1, 0, or 1');
+    if (!Number.isInteger(retries) || retries < 0) throw new Error('retries must be a non-negative integer');
+    if (typeof idempotent !== 'boolean') throw new Error('idempotent must be a boolean');
+    if (idempotent && acks !== -1) throw new Error('idempotent producers require acks=-1');
 }
 
 /**
@@ -109,8 +142,8 @@ export function buildMessages({ message, key, messageCount = 1, partition, heade
 /**
  * Builds a producer configuration from environment variables.
  * Reads KAFKA_BROKERS, KAFKA_CLIENT_ID, KAFKA_TOPIC, MESSAGE, KEY, MESSAGE_COUNT, PARTITION,
- * MESSAGE_HEADERS, and MESSAGE_TIMESTAMP.
- * @returns {{brokers: string|string[], clientId: string, topic: string, message: string, key: (string|undefined), messageCount: number, partition: (number|undefined), headers: (Record<string, string|string[]>|undefined), timestamp: (string|undefined)}}
+ * MESSAGE_HEADERS, MESSAGE_TIMESTAMP, PRODUCER_ACKS, PRODUCER_RETRIES, and PRODUCER_IDEMPOTENT.
+ * @returns {{brokers: string|string[], clientId: string, topic: string, message: string, key: (string|undefined), messageCount: number, partition: (number|undefined), headers: (Record<string, string|string[]>|undefined), timestamp: (string|undefined), acks: number, retries: number, idempotent: boolean}}
  */
 export function configFromEnv() {
     return {
@@ -123,6 +156,9 @@ export function configFromEnv() {
         partition: process.env.PARTITION ? Number(process.env.PARTITION) : undefined,
         headers: process.env.MESSAGE_HEADERS ? JSON.parse(process.env.MESSAGE_HEADERS) : undefined,
         timestamp: process.env.MESSAGE_TIMESTAMP,
+        acks: process.env.PRODUCER_ACKS ? Number(process.env.PRODUCER_ACKS) : -1,
+        retries: process.env.PRODUCER_RETRIES ? Number(process.env.PRODUCER_RETRIES) : 5,
+        idempotent: process.env.PRODUCER_IDEMPOTENT === 'true',
     };
 }
 

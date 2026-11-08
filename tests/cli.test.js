@@ -29,6 +29,9 @@ describe('configFromEnv (producer)', () => {
         delete process.env.PARTITION;
         delete process.env.MESSAGE_HEADERS;
         delete process.env.MESSAGE_TIMESTAMP;
+        delete process.env.PRODUCER_ACKS;
+        delete process.env.PRODUCER_RETRIES;
+        delete process.env.PRODUCER_IDEMPOTENT;
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -41,6 +44,9 @@ describe('configFromEnv (producer)', () => {
             partition: undefined,
             headers: undefined,
             timestamp: undefined,
+            acks: -1,
+            retries: 5,
+            idempotent: false,
         });
     });
 
@@ -54,6 +60,9 @@ describe('configFromEnv (producer)', () => {
         process.env.PARTITION = '1';
         process.env.MESSAGE_HEADERS = '{"trace-id":"abc"}';
         process.env.MESSAGE_TIMESTAMP = '1700000000000';
+        process.env.PRODUCER_ACKS = '1';
+        process.env.PRODUCER_RETRIES = '8';
+        process.env.PRODUCER_IDEMPOTENT = 'true';
 
         const cfg = producer.configFromEnv();
         expect(cfg).toEqual({
@@ -66,6 +75,9 @@ describe('configFromEnv (producer)', () => {
             partition: 1,
             headers: { 'trace-id': 'abc' },
             timestamp: '1700000000000',
+            acks: 1,
+            retries: 8,
+            idempotent: true,
         });
     });
 });

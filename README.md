@@ -100,6 +100,8 @@ Then continue with [Lesson 4: Headers, timestamps, and record inspection](docume
 
 Finally, try [Lesson 5: Failures, retries, and dead-letter topics](documentation/lesson-05-failures-retries-and-dead-letters.md) to compare Kafka redelivery with bounded application retries and explicit dead-letter routing.
 
+Then continue with [Lesson 6: Producer acknowledgments, retries, and idempotence](documentation/lesson-06-acknowledgments-retries-and-idempotence.md) to compare broker acknowledgment levels with KafkaJS retry behavior and idempotent publishing.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
@@ -114,6 +116,9 @@ Finally, try [Lesson 5: Failures, retries, and dead-letter topics](documentation
 - `PARTITION`: optional non-negative partition number for every produced record (producer only; default: broker partition selection)
 - `MESSAGE_HEADERS`: optional JSON object of Kafka record headers (producer only; default: unset)
 - `MESSAGE_TIMESTAMP`: optional record timestamp in milliseconds (producer only; default: broker timestamp)
+- `PRODUCER_ACKS`: broker acknowledgment level `-1`, `0`, or `1` (producer only; default: `-1`)
+- `PRODUCER_RETRIES`: KafkaJS network/protocol retry limit (producer only; default: `5`)
+- `PRODUCER_IDEMPOTENT`: enable idempotent producer mode; requires `PRODUCER_ACKS=-1` (producer only; default: `false`)
 - `FAIL_ON_KEY`: intentionally fail records with this key (consumer only; default: unset)
 - `FAIL_ON_VALUE`: intentionally fail records with this value (consumer only; default: unset)
 - `MAX_RETRIES`: application-level retries after the first attempt (consumer only; default: `0`)

@@ -100,13 +100,14 @@ describe('consumeMessages retry and stop error branches (unit)', () => {
 
         const { stop: stopFn, runPromise } = await promise;
 
-        // Prevent unhandled rejection while still letting stop() await a rejecting runPromise
-        runPromise.catch(() => {});
+        // Attach a rejection handler before triggering the controllable run failure.
+        const handledRunPromise = runPromise.catch(() => {});
 
         // trigger run loop rejection to exercise stop() catch-ignore for awaiting runPromise
         runReject(new Error('run loop error'));
 
         await stopFn();
+        await handledRunPromise;
 
         // verify interactions
         expect(connect).toHaveBeenCalledTimes(1);
@@ -176,6 +177,53 @@ describe('consumeMessages default record logging (unit)', () => {
         await stopConsumer();
 
         expect(stop).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('consumeMessages validation and dead-letter cleanup (unit)', () => {
+    test.each([
+        [{ maxRetries: -1 }, 'maxRetries must be a non-negative integer'],
+        [{ maxRetries: 1.5 }, 'maxRetries must be a non-negative integer'],
+        [{ retryBackoffMs: -1 }, 'retryBackoffMs must be a non-negative integer'],
+        [{ retryBackoffMs: 1.5 }, 'retryBackoffMs must be a non-negative integer'],
+    ])('rejects invalid retry option %j', async (options, error) => {
+        const { consumeMessages } = await importConsumerWithMocks();
+
+        await expect(consumeMessages({ brokers: ['b:1'], topic: 't', ...options })).rejects.toThrow(error);
+    });
+
+    test('continues cleanup when the dead-letter producer disconnect fails', async () => {
+        const disconnect = jest.fn().mockResolvedValue(undefined);
+        const deadLetterDisconnect = jest.fn().mockRejectedValue(new Error('dead-letter disconnect failed'));
+        const Kafka = jest.fn(() => ({
+            consumer: jest.fn(() => ({
+                connect: jest.fn().mockResolvedValue(undefined),
+                subscribe: jest.fn().mockResolvedValue(undefined),
+                run: jest.fn().mockResolvedValue(undefined),
+                stop: jest.fn().mockResolvedValue(undefined),
+                disconnect,
+            })),
+            admin: jest.fn(() => ({
+                connect: jest.fn().mockResolvedValue(undefined),
+                describeCluster: jest.fn().mockResolvedValue({}),
+                listTopics: jest.fn().mockResolvedValue([]),
+                disconnect: jest.fn().mockResolvedValue(undefined),
+            })),
+            producer: jest.fn(() => ({
+                connect: jest.fn().mockResolvedValue(undefined),
+                disconnect: deadLetterDisconnect,
+            })),
+        }));
+
+        const { consumeMessages } = await importConsumerWithMocks({
+            kafkajsMockFactory: () => ({ default: { Kafka, logLevel: { INFO: 4 } }, Kafka, logLevel: { INFO: 4 } }),
+        });
+
+        const result = await consumeMessages({ brokers: ['b:1'], topic: 't', deadLetterTopic: 't.dlq' });
+        await result.stop();
+
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(deadLetterDisconnect).toHaveBeenCalledTimes(1);
     });
 });
 

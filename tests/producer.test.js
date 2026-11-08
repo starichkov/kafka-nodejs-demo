@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
 import { kafkaClient, uniqueId, ensureTopic } from './kafka-helpers.js';
-import { buildMessages, produceMessage } from '../src/producer.js';
+import { buildMessages, buildProducerOptions, produceMessage, validateReliabilityOptions } from '../src/producer.js';
 
 async function consumeOne(kafka, topic) {
     const groupId = uniqueId('g');
@@ -8,21 +8,26 @@ async function consumeOne(kafka, topic) {
     await consumer.connect();
     await consumer.subscribe({ topic, fromBeginning: true });
     let first;
-    await new Promise((resolve, reject) => {
-        consumer
-            .run({
-                eachMessage: async ({ message }) => {
-                    first = {
-                        key: message.key ? message.key.toString() : null,
-                        value: message.value ? message.value.toString() : null,
-                    };
-                    resolve();
-                },
-            })
-            .catch(reject);
+    let resolveMessage;
+    const messageReceived = new Promise((resolve) => {
+        resolveMessage = resolve;
     });
-    await consumer.stop();
-    await consumer.disconnect();
+    const runPromise = consumer.run({
+        eachMessage: async ({ message }) => {
+            first = {
+                key: message.key ? message.key.toString() : null,
+                value: message.value ? message.value.toString() : null,
+            };
+            resolveMessage();
+        },
+    });
+    try {
+        await messageReceived;
+    } finally {
+        await consumer.stop();
+        await expect(runPromise).resolves.toBeUndefined();
+        await consumer.disconnect();
+    }
     return first;
 }
 
@@ -71,18 +76,23 @@ describe('producer with real Kafka (Testcontainers)', () => {
         let received;
         await consumer.connect();
         await consumer.subscribe({ topic, fromBeginning: true });
-        await new Promise((resolve, reject) => {
-            consumer
-                .run({
-                    eachMessage: async ({ message }) => {
-                        received = message;
-                        resolve();
-                    },
-                })
-                .catch(reject);
+        let resolveMessage;
+        const messageReceived = new Promise((resolve) => {
+            resolveMessage = resolve;
         });
-        await consumer.stop();
-        await consumer.disconnect();
+        const runPromise = consumer.run({
+            eachMessage: async ({ message }) => {
+                received = message;
+                resolveMessage();
+            },
+        });
+        try {
+            await messageReceived;
+        } finally {
+            await consumer.stop();
+            await expect(runPromise).resolves.toBeUndefined();
+            await consumer.disconnect();
+        }
 
         expect(received.headers).toEqual({
             'trace-id': Buffer.from('abc-123'),
@@ -109,27 +119,66 @@ describe('producer with real Kafka (Testcontainers)', () => {
         const messages = [];
         await consumer.connect();
         await consumer.subscribe({ topic, fromBeginning: true });
-        await new Promise((resolve, reject) => {
-            consumer
-                .run({
-                    eachMessage: async ({ message }) => {
-                        messages.push({
-                            key: message.key?.toString() ?? null,
-                            value: message.value?.toString() ?? null,
-                        });
-                        if (messages.length === 3) resolve();
-                    },
-                })
-                .catch(reject);
+        let resolveMessages;
+        const messagesReceived = new Promise((resolve) => {
+            resolveMessages = resolve;
         });
-        await consumer.stop();
-        await consumer.disconnect();
+        const runPromise = consumer.run({
+            eachMessage: async ({ message }) => {
+                messages.push({
+                    key: message.key?.toString() ?? null,
+                    value: message.value?.toString() ?? null,
+                });
+                if (messages.length === 3) resolveMessages();
+            },
+        });
+        try {
+            await messagesReceived;
+        } finally {
+            await consumer.stop();
+            await expect(runPromise).resolves.toBeUndefined();
+            await consumer.disconnect();
+        }
 
         expect(messages).toEqual([
             { key: 'sequence', value: 'item-1' },
             { key: 'sequence', value: 'item-2' },
             { key: 'sequence', value: 'item-3' },
         ]);
+    });
+
+    test('produceMessage supports idempotent delivery settings', async () => {
+        const topic = uniqueId();
+        await ensureTopic(kafka, topic);
+        const metadata = await produceMessage({
+            brokers,
+            topic,
+            message: 'idempotent message',
+            acks: -1,
+            retries: 3,
+            idempotent: true,
+        });
+
+        expect(metadata).toHaveLength(1);
+        expect(metadata[0]).toMatchObject({ topicName: topic, partition: 0 });
+    });
+});
+
+describe('producer reliability options', () => {
+    test('builds KafkaJS retry and idempotence options', () => {
+        const options = buildProducerOptions({ retries: 7, idempotent: true });
+
+        expect(options).toMatchObject({ idempotent: true, retry: { retries: 7 } });
+        expect(options.createPartitioner).toEqual(expect.any(Function));
+    });
+
+    test.each([
+        [{ acks: 2, retries: 5, idempotent: false }, 'acks must be -1, 0, or 1'],
+        [{ acks: -1, retries: -1, idempotent: false }, 'retries must be a non-negative integer'],
+        [{ acks: -1, retries: 5, idempotent: 'true' }, 'idempotent must be a boolean'],
+        [{ acks: 1, retries: 5, idempotent: true }, 'idempotent producers require acks=-1'],
+    ])('rejects invalid reliability settings', (options, error) => {
+        expect(() => validateReliabilityOptions(options)).toThrow(error);
     });
 });
 
