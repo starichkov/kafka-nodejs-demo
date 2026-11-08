@@ -87,6 +87,8 @@ If the applications cannot connect, check `docker compose ps` and inspect the br
 
 Continue with [Lesson 1: Follow one Kafka record](documentation/lesson-01-basics.md) to observe the same record at both ends of the flow. The producer reports Kafka's topic, partition, and offset; the consumer reports those values plus its group, timestamp, key, and value. This makes the broker-assigned position visible before moving on to multiple partitions, replay, and consumer-group experiments.
 
+Then continue with [Lesson 2: Consumer groups, offsets, and replay](documentation/lesson-02-groups-and-offsets.md) to compare a new group, a restarted group, and a different group reading the same records.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
