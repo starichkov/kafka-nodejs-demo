@@ -123,7 +123,8 @@ export async function consumeMessages({
                         const {topic, partition, message} = payload;
                         const key = message.key ? message.key.toString() : null;
                         const value = message.value ? message.value.toString() : null;
-                        logger.info(`Consumed message topic=${topic} partition=${partition} key=${key} value=${value}`);
+                        const timestamp = message.timestamp ?? null;
+                        logger.info(`Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} key=${key} value=${value}`);
                     }
                 },
             });

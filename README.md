@@ -83,6 +83,10 @@ npm run start:producer
 
 If the applications cannot connect, check `docker compose ps` and inspect the broker logs with `docker compose logs kafka`.
 
+### Guided beginner lesson
+
+Continue with [Lesson 1: Follow one Kafka record](documentation/lesson-01-basics.md) to observe the same record at both ends of the flow. The producer reports Kafka's topic, partition, and offset; the consumer reports those values plus its group, timestamp, key, and value. This makes the broker-assigned position visible before moving on to multiple partitions, replay, and consumer-group experiments.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)

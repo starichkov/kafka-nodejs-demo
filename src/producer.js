@@ -33,7 +33,7 @@ import logger from './logger.js';
  * @param {unknown} params.message The message payload. Strings/Buffers are used as-is; other types are JSON.stringified.
  * @param {string|number|null} [params.key] Optional key associated with the message (will be stringified; null if undefined).
  * @throws {Error} If brokers, topic, or message are not provided.
- * @returns {Promise<void>} Resolves when the message has been sent and the producer disconnected.
+ * @returns {Promise<import('kafkajs').RecordMetadata[]>} Kafka metadata for the sent record(s).
  */
 export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', topic = 'demo-topic', message, key}) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
@@ -51,7 +51,7 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
 
     await producer.connect();
     try {
-        await producer.send({
+        const metadata = await producer.send({
             topic,
             messages: [
                 {
@@ -60,6 +60,7 @@ export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', t
                 },
             ],
         });
+        return metadata;
     } finally {
         await producer.disconnect();
     }
@@ -89,8 +90,13 @@ export function configFromEnv() {
 export async function main(deps = { produceMessage }) {
     const cfg = configFromEnv();
     try {
-        await deps.produceMessage(cfg);
-        logger.info(`Produced message to ${cfg.topic}`);
+        const metadata = await deps.produceMessage(cfg);
+        const firstRecord = metadata?.[0];
+        if (firstRecord) {
+            logger.info(`Produced message topic=${firstRecord.topicName} partition=${firstRecord.partition} offset=${firstRecord.baseOffset}`);
+        } else {
+            logger.info(`Produced message to ${cfg.topic}`);
+        }
         process.exitCode = 0;
     } catch (err) {
         logger.error('Producer error:', err);

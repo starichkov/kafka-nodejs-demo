@@ -36,7 +36,11 @@ describe('producer with real Kafka (Testcontainers)', () => {
     test('produceMessage sends string message that can be consumed', async () => {
         const topic = uniqueId();
         await ensureTopic(kafka, topic);
-        await produceMessage({brokers, topic, key: 'k', message: 'v'});
+        const metadata = await produceMessage({brokers, topic, key: 'k', message: 'v'});
+
+        expect(metadata).toHaveLength(1);
+        expect(metadata[0]).toMatchObject({topicName: topic, partition: 0});
+        expect(metadata[0].baseOffset).toEqual(expect.any(String));
 
         const msg = await consumeOne(kafka, topic);
         expect(msg).toEqual({key: 'k', value: 'v'});

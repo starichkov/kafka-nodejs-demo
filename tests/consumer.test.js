@@ -32,6 +32,8 @@ describe('consumer with real Kafka (Testcontainers)', () => {
                 firstMessage = {
                     topic,
                     partition,
+                    offset: message.offset,
+                    timestamp: message.timestamp,
                     key: message.key ? message.key.toString() : null,
                     value: message.value ? message.value.toString() : null,
                 };
@@ -54,7 +56,9 @@ describe('consumer with real Kafka (Testcontainers)', () => {
         await stop();
         await runPromise;
 
-        expect(got).toEqual({topic, partition: 0, key: 'k', value: 'v'});
+        expect(got).toMatchObject({topic, partition: 0, key: 'k', value: 'v'});
+        expect(got.offset).toEqual(expect.any(String));
+        expect(got.timestamp).toEqual(expect.any(String));
     }, 20_000);
 });
 
