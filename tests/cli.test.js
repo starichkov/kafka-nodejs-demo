@@ -164,6 +164,19 @@ describe('producer.main (via dependency injection)', () => {
         await producer.main(deps);
         expect(process.exitCode).toBe(1);
     });
+
+    test('logs metadata for each produced record', async () => {
+        const deps = {
+            produceMessage: async () => [
+                { topicName: 'topic', partition: 1, baseOffset: '4' },
+                { topicName: 'topic', partition: 1, baseOffset: '5' },
+            ],
+        };
+
+        await producer.main(deps);
+
+        expect(process.exitCode).toBe(0);
+    });
 });
 
 describe('consumer.main (via dependency injection)', () => {

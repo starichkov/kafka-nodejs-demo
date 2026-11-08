@@ -140,6 +140,45 @@ describe('consumeMessages retry and stop error branches (unit)', () => {
     }, 15000);
 });
 
+describe('consumeMessages default record logging (unit)', () => {
+    test('normalizes scalar, array, and missing header values', async () => {
+        let eachMessage;
+        const stop = jest.fn().mockResolvedValue(undefined);
+        const Kafka = jest.fn(() => ({
+            consumer: jest.fn(() => ({
+                connect: jest.fn().mockResolvedValue(undefined),
+                subscribe: jest.fn().mockResolvedValue(undefined),
+                run: jest.fn((options) => {
+                    eachMessage = options.eachMessage;
+                    return Promise.resolve();
+                }),
+                stop,
+                disconnect: jest.fn().mockResolvedValue(undefined),
+            })),
+        }));
+
+        const { consumeMessages } = await importConsumerWithMocks({
+            kafkajsMockFactory: () => ({ default: { Kafka, logLevel: { INFO: 4 } }, Kafka, logLevel: { INFO: 4 } }),
+        });
+
+        const { stop: stopConsumer } = await consumeMessages({ brokers: ['b:1'], topic: 't', groupId: 'g' });
+        await eachMessage({
+            topic: 't',
+            partition: 0,
+            message: {
+                offset: '0',
+                timestamp: null,
+                key: null,
+                value: null,
+                headers: { scalar: Buffer.from('one'), many: [Buffer.from('two'), undefined], missing: undefined },
+            },
+        });
+        await stopConsumer();
+
+        expect(stop).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('isDirectRun edge cases', () => {
     test('isDirectRun returns false when pathToFileURL throws (catch branch)', async () => {
         const { isDirectRun } = await importConsumerWithMocks({

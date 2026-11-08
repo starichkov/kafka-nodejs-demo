@@ -192,6 +192,28 @@ describe('produceMessage error handling', () => {
             }),
         ).rejects.toThrow('message is required');
     });
+
+    test('throws error when message count is invalid', async () => {
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: 'test-topic',
+                message: 'test',
+                messageCount: 0,
+            }),
+        ).rejects.toThrow('messageCount must be a positive integer');
+    });
+
+    test('throws error when partition is invalid', async () => {
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: 'test-topic',
+                message: 'test',
+                partition: -1,
+            }),
+        ).rejects.toThrow('partition must be a non-negative integer');
+    });
 });
 
 describe('produceMessage message formatting', () => {
