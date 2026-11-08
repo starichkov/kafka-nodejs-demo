@@ -4,9 +4,9 @@
  * - Waits until Kafka is responsive using a KafkaJS admin client
  * - Exposes the container and brokers on globalThis for tests and teardown
  */
-import {KafkaContainer} from "@testcontainers/kafka";
-import {Wait} from "testcontainers";
-import {Kafka} from "kafkajs";
+import { KafkaContainer } from '@testcontainers/kafka';
+import { Wait } from 'testcontainers';
+import { Kafka } from 'kafkajs';
 
 /**
  * Polls Kafka until it is ready by using a KafkaJS admin client and metadata calls.
@@ -16,7 +16,7 @@ import {Kafka} from "kafkajs";
  */
 async function waitForKafka(brokers, timeoutMs = 30000) {
     const start = Date.now();
-    const kafka = new Kafka({brokers});
+    const kafka = new Kafka({ brokers });
     const admin = kafka.admin();
     while (true) {
         try {
@@ -29,10 +29,9 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
         } catch {
             try {
                 await admin.disconnect();
-            } catch {
-            }
-            if (Date.now() - start > timeoutMs) throw new Error("Kafka not ready in time");
-            await new Promise(r => setTimeout(r, 250));
+            } catch {}
+            if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
+            await new Promise((r) => setTimeout(r, 250));
         }
     }
 }
@@ -47,7 +46,7 @@ async function waitForKafka(brokers, timeoutMs = 30000) {
  * @returns {Promise<void>}
  */
 export default async () => {
-    const image = process.env.KAFKA_IMAGE || "confluentinc/cp-kafka:7.9.6";
+    const image = process.env.KAFKA_IMAGE || 'confluentinc/cp-kafka:7.9.6';
     console.log(`[jest-global-setup] Starting Kafka container with image: ${image}`);
     const container = await new KafkaContainer(image)
         .withStartupTimeout(30000)
@@ -64,9 +63,9 @@ export default async () => {
     console.log(`[jest-global-setup] Kafka is ready for connections.`);
 
     // Stash paths on global to read them in teardown (same process)
-    globalThis.__kafka_container__ = {container};
-    globalThis.__kafka_brokers__ = {brokers};
-    
+    globalThis.__kafka_container__ = { container };
+    globalThis.__kafka_brokers__ = { brokers };
+
     // Also set environment variable for tests that might run in separate processes
     process.env.KAFKA_BROKERS_DYNAMIC = brokers.join(',');
 };

@@ -11,13 +11,13 @@
  * - isDirectRun: detects whether the module is executed directly (node src/producer.js).
  */
 import pkg from 'kafkajs';
-import {pathToFileURL} from 'url';
+import { pathToFileURL } from 'url';
 
-const {Kafka, logLevel} = pkg;
+const { Kafka, logLevel } = pkg;
 
 // Re-exported from shared utils to avoid duplication across modules
-import {parseBrokers, waitForKafkaConnectivity} from './utils.js';
-export {parseBrokers};
+import { parseBrokers, waitForKafkaConnectivity } from './utils.js';
+export { parseBrokers };
 
 // Centralized logger
 import logger from './logger.js';
@@ -35,14 +35,14 @@ import logger from './logger.js';
  * @throws {Error} If brokers, topic, or message are not provided.
  * @returns {Promise<import('kafkajs').RecordMetadata[]>} Kafka metadata for the sent record(s).
  */
-export async function produceMessage({brokers, clientId = 'kafka-nodejs-demo', topic = 'demo-topic', message, key}) {
+export async function produceMessage({ brokers, clientId = 'kafka-nodejs-demo', topic = 'demo-topic', message, key }) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
     }
     if (!topic) throw new Error('topic is required');
     if (typeof message === 'undefined' || message === null) throw new Error('message is required');
 
-    const kafka = new Kafka({clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING});
+    const kafka = new Kafka({ clientId, brokers: parseBrokers(brokers), logLevel: logLevel.NOTHING });
     const producer = kafka.producer();
 
     // Perform a readiness check via Kafka admin instead of relying on timing
@@ -93,7 +93,9 @@ export async function main(deps = { produceMessage }) {
         const metadata = await deps.produceMessage(cfg);
         const firstRecord = metadata?.[0];
         if (firstRecord) {
-            logger.info(`Produced message topic=${firstRecord.topicName} partition=${firstRecord.partition} offset=${firstRecord.baseOffset}`);
+            logger.info(
+                `Produced message topic=${firstRecord.topicName} partition=${firstRecord.partition} offset=${firstRecord.baseOffset}`,
+            );
         } else {
             logger.info(`Produced message to ${cfg.topic}`);
         }

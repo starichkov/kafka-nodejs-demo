@@ -1,5 +1,5 @@
-import {describe, test, expect} from '@jest/globals';
-import {parseBrokers} from '../src/utils.js';
+import { describe, test, expect } from '@jest/globals';
+import { parseBrokers } from '../src/utils.js';
 
 // Consolidated unit tests for parseBrokers from producer/consumer tests
 

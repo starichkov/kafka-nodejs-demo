@@ -1,17 +1,17 @@
-import {describe, test, expect} from '@jest/globals';
-import {kafkaClient, uniqueId, ensureTopic} from './kafka-helpers.js';
-import {produceMessage} from "../src/producer.js";
+import { describe, test, expect } from '@jest/globals';
+import { kafkaClient, uniqueId, ensureTopic } from './kafka-helpers.js';
+import { produceMessage } from '../src/producer.js';
 
 async function consumeOne(kafka, topic) {
-    const groupId = uniqueId("g");
-    const consumer = kafka.consumer({groupId: groupId});
+    const groupId = uniqueId('g');
+    const consumer = kafka.consumer({ groupId: groupId });
     await consumer.connect();
-    await consumer.subscribe({topic, fromBeginning: true});
+    await consumer.subscribe({ topic, fromBeginning: true });
     let first;
     await new Promise((resolve, reject) => {
         consumer
             .run({
-                eachMessage: async ({message}) => {
+                eachMessage: async ({ message }) => {
                     first = {
                         key: message.key ? message.key.toString() : null,
                         value: message.value ? message.value.toString() : null,
@@ -27,7 +27,6 @@ async function consumeOne(kafka, topic) {
 }
 
 describe('producer with real Kafka (Testcontainers)', () => {
-
     const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
     const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
 
@@ -36,73 +35,84 @@ describe('producer with real Kafka (Testcontainers)', () => {
     test('produceMessage sends string message that can be consumed', async () => {
         const topic = uniqueId();
         await ensureTopic(kafka, topic);
-        const metadata = await produceMessage({brokers, topic, key: 'k', message: 'v'});
+        const metadata = await produceMessage({ brokers, topic, key: 'k', message: 'v' });
 
         expect(metadata).toHaveLength(1);
-        expect(metadata[0]).toMatchObject({topicName: topic, partition: 0});
+        expect(metadata[0]).toMatchObject({ topicName: topic, partition: 0 });
         expect(metadata[0].baseOffset).toEqual(expect.any(String));
 
         const msg = await consumeOne(kafka, topic);
-        expect(msg).toEqual({key: 'k', value: 'v'});
+        expect(msg).toEqual({ key: 'k', value: 'v' });
     });
 
     test('produceMessage stringifies non-string message', async () => {
         const topic = uniqueId();
         await ensureTopic(kafka, topic);
-        await produceMessage({brokers, topic, message: {a: 1}});
+        await produceMessage({ brokers, topic, message: { a: 1 } });
 
         const msg = await consumeOne(kafka, topic);
-        expect(msg).toEqual({key: null, value: JSON.stringify({a: 1})});
+        expect(msg).toEqual({ key: null, value: JSON.stringify({ a: 1 }) });
     });
 });
 
-
 describe('produceMessage error handling', () => {
     test('throws error when brokers is null', async () => {
-        await expect(produceMessage({
-            brokers: null,
-            topic: 'test-topic',
-            message: 'test'
-        })).rejects.toThrow('brokers is required');
+        await expect(
+            produceMessage({
+                brokers: null,
+                topic: 'test-topic',
+                message: 'test',
+            }),
+        ).rejects.toThrow('brokers is required');
     });
 
     test('throws error when brokers is empty array', async () => {
-        await expect(produceMessage({
-            brokers: [],
-            topic: 'test-topic',
-            message: 'test'
-        })).rejects.toThrow('brokers is required');
+        await expect(
+            produceMessage({
+                brokers: [],
+                topic: 'test-topic',
+                message: 'test',
+            }),
+        ).rejects.toThrow('brokers is required');
     });
 
     test('throws error when topic is missing', async () => {
-        await expect(produceMessage({
-            brokers: ['localhost:9092'],
-            topic: null,
-            message: 'test'
-        })).rejects.toThrow('topic is required');
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: null,
+                message: 'test',
+            }),
+        ).rejects.toThrow('topic is required');
     });
 
     test('throws error when topic is empty string', async () => {
-        await expect(produceMessage({
-            brokers: ['localhost:9092'],
-            topic: '',
-            message: 'test'
-        })).rejects.toThrow('topic is required');
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: '',
+                message: 'test',
+            }),
+        ).rejects.toThrow('topic is required');
     });
 
     test('throws error when message is undefined', async () => {
-        await expect(produceMessage({
-            brokers: ['localhost:9092'],
-            topic: 'test-topic'
-        })).rejects.toThrow('message is required');
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: 'test-topic',
+            }),
+        ).rejects.toThrow('message is required');
     });
 
     test('throws error when message is null', async () => {
-        await expect(produceMessage({
-            brokers: ['localhost:9092'],
-            topic: 'test-topic',
-            message: null
-        })).rejects.toThrow('message is required');
+        await expect(
+            produceMessage({
+                brokers: ['localhost:9092'],
+                topic: 'test-topic',
+                message: null,
+            }),
+        ).rejects.toThrow('message is required');
     });
 });
 

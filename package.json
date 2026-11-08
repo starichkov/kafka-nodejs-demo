@@ -12,7 +12,10 @@
     "start:consumer": "node src/consumer.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --coverage",
-    "test:docker": "./test-docker-compose.sh"
+    "test:docker": "./test-docker-compose.sh",
+    "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\" \"*.js\""
   },
   "keywords": [
     "kafka",
@@ -26,9 +29,13 @@
     "kafkajs": "^2.2.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@jest/globals": "^30.5.2",
     "@testcontainers/kafka": "^12.2.1",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
     "jest": "^30.5.2",
+    "prettier": "^3.9.10",
     "testcontainers": "^12.2.1"
   },
   "overrides": {

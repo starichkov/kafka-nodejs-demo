@@ -14,12 +14,12 @@
  * @returns {string[]} Array of brokers in "host:port" format. Returns [] for invalid input.
  */
 export function parseBrokers(input) {
-  if (Array.isArray(input)) return input;
-  if (typeof input !== 'string') return [];
-  return input
-    .split(',')
-    .map((b) => b.trim().replace(/^PLAINTEXT:\/\//, ''))
-    .filter(Boolean);
+    if (Array.isArray(input)) return input;
+    if (typeof input !== 'string') return [];
+    return input
+        .split(',')
+        .map((b) => b.trim().replace(/^PLAINTEXT:\/\//, ''))
+        .filter(Boolean);
 }
 
 /**
@@ -32,23 +32,25 @@ export function parseBrokers(input) {
  * @returns {Promise<void>} Resolves when connectivity is confirmed
  */
 export async function waitForKafkaConnectivity(kafka, timeoutMs = 10000) {
-  // In unit tests or mocks, kafka.admin may be unavailable; treat as ready
-  if (!kafka || typeof kafka.admin !== 'function') return;
-  const admin = kafka.admin();
-  const start = Date.now();
-  try {
-    await admin.connect();
-    // Poll describeCluster until it succeeds or timeout
-    for (;;) {
-      try {
-        await admin.describeCluster();
-        return; // ready
-      } catch {
-        if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
-        await new Promise((r) => setTimeout(r, 250));
-      }
+    // In unit tests or mocks, kafka.admin may be unavailable; treat as ready
+    if (!kafka || typeof kafka.admin !== 'function') return;
+    const admin = kafka.admin();
+    const start = Date.now();
+    try {
+        await admin.connect();
+        // Poll describeCluster until it succeeds or timeout
+        for (;;) {
+            try {
+                await admin.describeCluster();
+                return; // ready
+            } catch {
+                if (Date.now() - start > timeoutMs) throw new Error('Kafka not ready in time');
+                await new Promise((r) => setTimeout(r, 250));
+            }
+        }
+    } finally {
+        try {
+            await admin.disconnect();
+        } catch {}
     }
-  } finally {
-    try { await admin.disconnect(); } catch {}
-  }
 }

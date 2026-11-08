@@ -3,7 +3,7 @@
  * Provides utilities to create a Kafka client, generate unique IDs, and ensure a topic exists.
  * Note: Brokers are read from globalThis.__kafka_brokers__ which is set in Jest global setup.
  */
-import {Kafka} from "kafkajs";
+import { Kafka } from 'kafkajs';
 
 /**
  * Creates a KafkaJS client configured with brokers from the test environment.
@@ -12,12 +12,14 @@ import {Kafka} from "kafkajs";
 export function kafkaClient() {
     const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
     const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
-    
+
     if (!brokers) {
-        throw new Error("Kafka brokers not initialized in global setup. Ensure globalSetup is running and sharing data correctly.");
+        throw new Error(
+            'Kafka brokers not initialized in global setup. Ensure globalSetup is running and sharing data correctly.',
+        );
     }
-    
-    return new Kafka({brokers});
+
+    return new Kafka({ brokers });
 }
 
 /**
@@ -26,7 +28,7 @@ export function kafkaClient() {
  * @param {string} [prefix="t"] Prefix to prepend to the generated ID.
  * @returns {string} A unique identifier string.
  */
-export function uniqueId(prefix = "t") {
+export function uniqueId(prefix = 't') {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
@@ -43,7 +45,7 @@ export async function ensureTopic(kafka, topic) {
     await admin.connect();
     const topics = await admin.listTopics();
     if (!topics.includes(topic)) {
-        await admin.createTopics({topics: [{topic, numPartitions: 1, replicationFactor: 1}]});
+        await admin.createTopics({ topics: [{ topic, numPartitions: 1, replicationFactor: 1 }] });
     }
     await admin.disconnect();
 }

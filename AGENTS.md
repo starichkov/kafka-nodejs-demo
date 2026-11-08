@@ -10,6 +10,8 @@ Run these checks locally before considering a change complete:
 npm test
 npm run test:coverage
 npm run test:docker
+npm run lint
+npm run format:check
 git diff --check
 ```
 
@@ -21,6 +23,7 @@ The Docker check builds both application images and exercises the complete Compo
 - Add or update integration tests when Kafka connectivity, topic handling, message delivery, or shutdown behavior changes.
 - Keep tests deterministic and cover validation and error paths for new behavior.
 - Run the full suite after focused tests. Do not hide failures with skipped tests, weakened assertions, or test-pattern exclusions.
+- Keep JavaScript code passing `npm run lint` and `npm run format:check`.
 
 ## Docker and configuration rules
 

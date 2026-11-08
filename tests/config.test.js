@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeEach, afterEach} from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Import the functions we need to test - note these are not exported, so we need a different approach
 // We'll test them indirectly through the isDirectRun functions and by manipulating process.env
@@ -75,11 +75,11 @@ describe('Configuration and CLI functionality', () => {
         test('pathToFileURL error handling', async () => {
             // Test the isDirectRun function error handling
             // We can test the pathToFileURL functionality indirectly
-            const {pathToFileURL} = await import('url');
-            
+            const { pathToFileURL } = await import('url');
+
             // Test normal case
             expect(() => pathToFileURL('/valid/path')).not.toThrow();
-            
+
             // Test that the try-catch in isDirectRun would handle errors
             try {
                 const result = pathToFileURL(process.argv[1]);

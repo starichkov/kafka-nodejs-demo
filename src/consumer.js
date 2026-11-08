@@ -14,11 +14,11 @@ import pkg from 'kafkajs';
 import * as url from 'url';
 import path from 'path';
 
-const {Kafka, logLevel} = pkg;
+const { Kafka, logLevel } = pkg;
 
 // Re-exported from shared utils to avoid duplication across modules
-import {parseBrokers, waitForKafkaConnectivity} from './utils.js';
-export {parseBrokers};
+import { parseBrokers, waitForKafkaConnectivity } from './utils.js';
+export { parseBrokers };
 
 // Centralized logger
 import logger from './logger.js';
@@ -42,21 +42,21 @@ import logger from './logger.js';
  * } Object containing a stop function and the run promise.
  */
 export async function consumeMessages({
-                                          brokers,
-                                          clientId = 'kafka-nodejs-demo',
-                                          groupId = 'kafka-nodejs-demo-group',
-                                          topic = 'demo-topic',
-                                          fromBeginning = true,
-                                          eachMessage,
-                                          signal,
-                                      }) {
+    brokers,
+    clientId = 'kafka-nodejs-demo',
+    groupId = 'kafka-nodejs-demo-group',
+    topic = 'demo-topic',
+    fromBeginning = true,
+    eachMessage,
+    signal,
+}) {
     if (!brokers || (Array.isArray(brokers) && brokers.length === 0)) {
         throw new Error('brokers is required');
     }
     if (!topic) throw new Error('topic is required');
 
-    const kafka = new Kafka({clientId, brokers: parseBrokers(brokers), logLevel: logLevel.INFO});
-    const consumer = kafka.consumer({groupId});
+    const kafka = new Kafka({ clientId, brokers: parseBrokers(brokers), logLevel: logLevel.INFO });
+    const consumer = kafka.consumer({ groupId });
 
     let running = true;
 
@@ -92,15 +92,15 @@ export async function consumeMessages({
             logger.warn('Signal already aborted, stopping consumer immediately');
             await stopConsumer();
         }
-        signal.addEventListener('abort', stopConsumer, {once: true});
+        signal.addEventListener('abort', stopConsumer, { once: true });
     }
 
     logger.info('Connecting to Kafka...');
     await consumer.connect();
     logger.info('Connected to Kafka successfully');
-    
+
     logger.info(`Subscribing to topic: ${topic}, fromBeginning: ${fromBeginning}`);
-    await consumer.subscribe({topic, fromBeginning});
+    await consumer.subscribe({ topic, fromBeginning });
     logger.info('Subscribed to topic successfully');
 
     // Perform a readiness check via Kafka admin instead of a fixed sleep
@@ -111,7 +111,7 @@ export async function consumeMessages({
     let retries = 0;
     const maxRetries = 3;
     let runPromise;
-    
+
     while (retries < maxRetries && running) {
         try {
             runPromise = consumer.run({
@@ -120,11 +120,13 @@ export async function consumeMessages({
                     if (typeof eachMessage === 'function') {
                         await eachMessage(payload);
                     } else {
-                        const {topic, partition, message} = payload;
+                        const { topic, partition, message } = payload;
                         const key = message.key ? message.key.toString() : null;
                         const value = message.value ? message.value.toString() : null;
                         const timestamp = message.timestamp ?? null;
-                        logger.info(`Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} key=${key} value=${value}`);
+                        logger.info(
+                            `Consumed message group=${groupId} topic=${topic} partition=${partition} offset=${message.offset} timestamp=${timestamp} key=${key} value=${value}`,
+                        );
                     }
                 },
             });
@@ -157,7 +159,7 @@ export async function consumeMessages({
         }
     };
 
-    return {stop, runPromise};
+    return { stop, runPromise };
 }
 
 /**
@@ -190,7 +192,7 @@ export async function main(deps = { consumeMessages }) {
     process.on('SIGTERM', () => ac.abort());
     try {
         logger.info(`Starting consumer: topic=${cfg.topic}, brokers=${cfg.brokers}`);
-        const {runPromise} = await deps.consumeMessages({...cfg, signal});
+        const { runPromise } = await deps.consumeMessages({ ...cfg, signal });
         // Keep the process alive until the consumer stops (e.g., on SIGINT/SIGTERM)
         await runPromise;
     } catch (err) {
@@ -238,7 +240,7 @@ function computeDirectRun() {
         } catch {}
 
         // 2) Direct string equality of normalized paths
-        if (modulePath && (argvAsPath === modulePath)) return true;
+        if (modulePath && argvAsPath === modulePath) return true;
 
         // 3) Resolved path equality (handles relative segments and symlinks in many cases)
         try {

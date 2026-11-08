@@ -36,6 +36,12 @@ jobs:
       - name: Build project
         run: npm run build --if-present
 
+      - name: Check code style
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Run unit tests
         if: matrix.node-version != '26.x' || matrix.kafka-image != 'confluentinc/cp-kafka:7.9.6'
         env:
