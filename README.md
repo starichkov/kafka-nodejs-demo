@@ -140,6 +140,8 @@ Inspect the retained offset range for the configured topic with `npm run inspect
 
 The project uses Jest for unit and integration testing. Integration tests use [Testcontainers](https://testcontainers.com/) to spin up a real Kafka instance.
 
+See [the architecture overview](documentation/architecture.md) for the producer, broker, topic, consumer-group, and dead-letter paths. See [the test story](documentation/testing.md) for what each suite teaches, which behavior it protects, and how to interpret failures.
+
 ### Run tests locally
 
 ```shell
