@@ -104,6 +104,8 @@ Finally, try [Lesson 5: Failures, retries, and dead-letter topics](documentation
 
 Then continue with [Lesson 6: Producer acknowledgments, retries, and idempotence](documentation/lesson-06-acknowledgments-retries-and-idempotence.md) to compare broker acknowledgment levels with KafkaJS retry behavior and idempotent publishing.
 
+Read [Lifecycle and delivery semantics](documentation/lifecycle-and-delivery-semantics.md) for the complete record lifecycle, coordinated shutdown behavior, offset and retry boundaries, and the guarantees this educational demo intentionally does not provide.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
