@@ -41,7 +41,7 @@ Replace host.docker.internal:9092 with the address of your Kafka broker.
 
 ### Run everything with docker-compose
 
-This will start a single Kafka broker (KRaft, version 3.9.2), the consumer, and then the producer.
+This will start a single Kafka broker (KRaft, version 3.9.2), create `demo-topic`, the consumer, and then the producer.
 The project is also compatible with Kafka 4.3.2.
 
 - Start:
@@ -49,7 +49,9 @@ The project is also compatible with Kafka 4.3.2.
   docker compose up --build
   ```
 
-- Observe logs: the consumer should print the message produced by the producer to topic demo-topic.
+- Observe logs: the consumer should print the message produced by the producer to topic `demo-topic`.
+
+Compose uses `kafka:9092` for containers and advertises `localhost:9092` for applications running on the host. This split is required because `kafka` is a Docker-network hostname and is not resolvable from the host.
 
 - Cleanup:
   ```shell

@@ -3,16 +3,16 @@ services:
     image: apache/kafka:3.9.2
     container_name: kafka
     ports:
-      - "9092:9092"
+      - "9092:29092"
     environment:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_NODE_ID: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
       # Group coordinator configuration for faster availability
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
@@ -34,8 +34,8 @@ services:
         condition: service_healthy
     command: >
       bash -c "
-        echo 'Creating topic kafka-nodejs-demo-topic...' &&
-        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic kafka-nodejs-demo-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        echo 'Creating topic demo-topic...' &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic demo-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
         echo 'Topic creation completed.'
       "
     restart: on-failure
@@ -54,7 +54,7 @@ services:
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_CLIENT_ID: "kafka-nodejs-demo"
       KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
-      KAFKA_TOPIC: "kafka-nodejs-demo-topic"
+      KAFKA_TOPIC: "demo-topic"
       MESSAGE: "${MESSAGE:-hello from producer}"
       FROM_BEGINNING: "true"
     restart: on-failure
@@ -75,6 +75,6 @@ services:
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_CLIENT_ID: "kafka-nodejs-demo"
       KAFKA_GROUP_ID: "kafka-nodejs-demo-group"
-      KAFKA_TOPIC: "kafka-nodejs-demo-topic"
+      KAFKA_TOPIC: "demo-topic"
       FROM_BEGINNING: "true"
     restart: on-failure

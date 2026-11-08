@@ -39,8 +39,10 @@ docker compose logs -f consumer producer
 
 This will:
 - Start a Kafka broker (exposed on localhost:9092)
-- Create the topic kafka-nodejs-demo-topic
+- Create the topic `demo-topic`
 - Build and run the demo producer (sends one message) and consumer (prints messages)
+
+The Compose broker advertises `kafka:9092` to other Compose services and `localhost:9092` to applications running on your host.
 
 ### Option 2: Run the Node.js apps locally
 
@@ -60,7 +62,7 @@ docker compose run --rm kafka-setup
 
 ```shell
 KAFKA_BROKERS=localhost:9092 \
-KAFKA_TOPIC=kafka-nodejs-demo-topic \
+KAFKA_TOPIC=demo-topic \
 npm run start:consumer
 ```
 
@@ -68,7 +70,7 @@ npm run start:consumer
 
 ```shell
 KAFKA_BROKERS=localhost:9092 \
-KAFKA_TOPIC=kafka-nodejs-demo-topic \
+KAFKA_TOPIC=demo-topic \
 MESSAGE="Hello from producer" \
 # KEY is optional; uncomment to set a key
 # KEY=my-key \
@@ -77,14 +79,16 @@ npm run start:producer
 
 4. Stop:
 - Press Ctrl+C in the consumer terminal
-- Stop Kafka: `docker compose down`
+- Stop Kafka and remove the disposable broker data: `docker compose down -v`
+
+If the applications cannot connect, check `docker compose ps` and inspect the broker logs with `docker compose logs kafka`.
 
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
 - `KAFKA_CLIENT_ID`: client id (default: `kafka-nodejs-demo`)
 - `KAFKA_GROUP_ID`: consumer group id (consumer only; default: `kafka-nodejs-demo-group`)
-- `KAFKA_TOPIC`: topic name (default: `demo-topic`)
+- `KAFKA_TOPIC`: topic name (default: `demo-topic`; this is also the Compose topic)
 - `FROM_BEGINNING`: read from beginning (consumer only; default: `true`)
 - `MESSAGE`: message value to send (producer only; default: `"hello from producer"`)
 - `KEY`: optional message key (producer only; default: unset)
