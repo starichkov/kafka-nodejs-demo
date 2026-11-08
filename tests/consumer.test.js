@@ -60,6 +60,61 @@ describe('consumer with real Kafka (Testcontainers)', () => {
         expect(got.offset).toEqual(expect.any(String));
         expect(got.timestamp).toEqual(expect.any(String));
     }, 20_000);
+
+    test('two consumers in one group share a multi-partition topic', async () => {
+        const brokersString = process.env.KAFKA_BROKERS_DYNAMIC;
+        const brokers = brokersString ? brokersString.split(',') : globalThis.__kafka_brokers__?.brokers;
+        const topic = uniqueId('partitions');
+        const groupId = uniqueId('shared-group');
+        const kafka = kafkaClient();
+        await ensureTopic(kafka, topic, 3);
+
+        const received = [[], []];
+        const consumers = await Promise.all(
+            received.map((messages, index) =>
+                consumeMessages({
+                    brokers,
+                    topic,
+                    groupId,
+                    clientId: `consumer-${index}`,
+                    fromBeginning: true,
+                    eachMessage: async ({ partition, message }) => {
+                        messages.push({ partition, value: message.value.toString() });
+                    },
+                }),
+            ),
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const producer = kafka.producer();
+        await producer.connect();
+        await producer.send({
+            topic,
+            messages: [0, 1, 2].map((partition) => ({ partition, value: `partition-${partition}` })),
+        });
+        await producer.disconnect();
+
+        await new Promise((resolve, reject) => {
+            const deadline = Date.now() + 15_000;
+            const check = () => {
+                if (received.flat().length === 3) return resolve();
+                if (Date.now() >= deadline) return reject(new Error('Timed out waiting for all partitions'));
+                setTimeout(check, 25);
+            };
+            check();
+        });
+
+        await Promise.all(consumers.map(({ stop }) => stop()));
+        await Promise.all(consumers.map(({ runPromise }) => runPromise));
+
+        expect(received.filter((messages) => messages.length > 0)).toHaveLength(2);
+        expect(
+            received
+                .flat()
+                .map(({ partition }) => partition)
+                .sort(),
+        ).toEqual([0, 1, 2]);
+    }, 30_000);
 });
 
 describe('consumeMessages error handling', () => {

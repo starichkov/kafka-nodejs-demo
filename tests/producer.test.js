@@ -54,19 +54,18 @@ describe('producer with real Kafka (Testcontainers)', () => {
         expect(msg).toEqual({ key: null, value: JSON.stringify({ a: 1 }) });
     });
 
-    test('produceMessage sends a deterministic batch with the same key', async () => {
+    test('produceMessage keeps same-key records ordered in one partition', async () => {
         const topic = uniqueId();
-        await ensureTopic(kafka, topic);
+        await ensureTopic(kafka, topic, 3);
         const metadata = await produceMessage({ brokers, topic, key: 'sequence', message: 'item', messageCount: 3 });
 
         expect(metadata).toHaveLength(3);
-        expect(metadata).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ topicName: topic, partition: 0 }),
-                expect.objectContaining({ topicName: topic, partition: 0 }),
-                expect.objectContaining({ topicName: topic, partition: 0 }),
-            ]),
-        );
+        expect(new Set(metadata.map((record) => record.partition)).size).toBe(1);
+        expect(metadata.map((record) => Number(record.baseOffset))).toEqual([
+            Number(metadata[0].baseOffset),
+            Number(metadata[0].baseOffset) + 1,
+            Number(metadata[0].baseOffset) + 2,
+        ]);
 
         const groupId = uniqueId('g');
         const consumer = kafka.consumer({ groupId });

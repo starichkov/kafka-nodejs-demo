@@ -94,12 +94,15 @@ Continue with [Lesson 1: Follow one Kafka record](documentation/lesson-01-basics
 
 Then continue with [Lesson 2: Consumer groups, offsets, and replay](documentation/lesson-02-groups-and-offsets.md) to compare a new group, a restarted group, and a different group reading the same records.
 
+Then continue with [Lesson 3: Partitions, keys, ordering, and parallel consumers](documentation/lesson-03-partitions-and-ordering.md) to create a three-partition topic, observe same-key ordering, and share partitions between consumers in one group.
+
 ### Configuration (env vars and defaults)
 
 - `KAFKA_BROKERS`: Kafka broker list (default: `localhost:9092`)
 - `KAFKA_CLIENT_ID`: client id (default: `kafka-nodejs-demo`)
 - `KAFKA_GROUP_ID`: consumer group id (consumer only; default: `kafka-nodejs-demo-group`)
 - `KAFKA_TOPIC`: topic name (default: `demo-topic`; this is also the Compose topic)
+- `PARTITION_COUNT`: number of partitions for a newly created Compose topic (default: `1`; topic setup only)
 - `FROM_BEGINNING`: read from beginning (consumer only; default: `true`)
 - `MESSAGE`: message value to send (producer only; default: `"hello from producer"`)
 - `KEY`: optional message key (producer only; default: unset)

@@ -29,15 +29,17 @@ services:
   kafka-setup:
     image: apache/kafka:3.9.2
     container_name: kafka-setup
+    environment:
+      PARTITION_COUNT: "${PARTITION_COUNT:-1}"
     depends_on:
       kafka:
         condition: service_healthy
     command: >
-      bash -c "
-        echo 'Creating topic demo-topic...' &&
-        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic demo-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
-        echo 'Topic creation completed.'
-      "
+      bash -c '
+        echo "Creating topic demo-topic with $${PARTITION_COUNT} partition(s)..." &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic demo-topic --bootstrap-server kafka:9092 --partitions "$${PARTITION_COUNT}" --replication-factor 1 &&
+        echo "Topic creation completed."
+      '
     restart: on-failure
 
   producer:

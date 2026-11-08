@@ -34,18 +34,19 @@ export function uniqueId(prefix = 't') {
 
 /**
  * Ensures that the specified Kafka topic exists. If it does not, the topic is created
- * with a single partition and a replication factor of 1. Connects to an admin client,
- * checks for the topic, creates it if needed, and disconnects.
+ * with the requested partition count and a replication factor of 1. Connects to an
+ * admin client, checks for the topic, creates it if needed, and disconnects.
  * @param {Kafka} kafka KafkaJS client instance.
  * @param {string} topic The topic name to ensure exists.
+ * @param {number} [numPartitions=1] Number of partitions for a newly created topic.
  * @returns {Promise<void>} Resolves when the topic exists (either previously or after creation).
  */
-export async function ensureTopic(kafka, topic) {
+export async function ensureTopic(kafka, topic, numPartitions = 1) {
     const admin = kafka.admin();
     await admin.connect();
     const topics = await admin.listTopics();
     if (!topics.includes(topic)) {
-        await admin.createTopics({ topics: [{ topic, numPartitions: 1, replicationFactor: 1 }] });
+        await admin.createTopics({ topics: [{ topic, numPartitions, replicationFactor: 1 }] });
     }
     await admin.disconnect();
 }
